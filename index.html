@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HabitBox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===================== AUTH VIEW ===================== -->
+  <div id="view-auth" class="view active">
+    <div class="auth-container">
+      <div class="auth-logo">
+        <span class="logo-text">Habit<span class="logo-accent">Box</span></span>
+        <p class="auth-tagline">Build &amp; Maintain Positive Habits</p>
+      </div>
+      <div class="auth-card">
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Iniciar sesión</button>
+          <button class="auth-tab" data-tab="register">Registrarse</button>
+        </div>
+        <form id="form-login" class="auth-form active">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="tu@email.com" required />
+          </div>
+          <div class="field">
+            <label>Contraseña</label>
+            <input type="password" id="login-password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn-primary">Entrar</button>
+          <p id="login-error" class="form-error"></p>
+        </form>
+        <form id="form-register" class="auth-form">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="register-email" placeholder="tu@email.com" required />
+          </div>
+          <div class="field">
+            <label>Contraseña</label>
+            <input type="password" id="register-password" placeholder="Mínimo 6 caracteres" required />
+          </div>
+          <button type="submit" class="btn-primary">Crear cuenta</button>
+          <p id="register-error" class="form-error"></p>
+          <p id="register-success" class="form-success"></p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== DASHBOARD VIEW ===================== -->
+  <div id="view-dashboard" class="view">
+    <div class="app-wrapper">
+      <header class="app-header">
+        <span class="logo-text">Habit<span class="logo-accent">Box</span></span>
+        <div class="header-actions">
+          <button id="btn-view-grid" class="icon-btn active" title="Vista cuadrícula">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z"/></svg>
+          </button>
+          <div class="divider-v"></div>
+          <button id="btn-view-list" class="icon-btn" title="Vista lista">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h2v2H3zm4 0h14v2H7zM3 11h2v2H3zm4 0h14v2H7zM3 17h2v2H3zm4 0h14v2H7z"/></svg>
+          </button>
+          <button id="btn-logout" class="icon-btn" title="Cerrar sesión">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="habits-container" class="habits-grid">
+        <!-- Habit cards rendered here by JS -->
+        <div id="empty-state" class="empty-state" style="display:none">
+          <span class="empty-icon">🌱</span>
+          <p>No tienes hábitos todavía.</p>
+          <p>Pulsa <strong>+</strong> para añadir el primero.</p>
+        </div>
+      </main>
+
+      <button id="btn-add-habit" class="fab" title="Añadir hábito">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== DETAIL VIEW ===================== -->
+  <div id="view-detail" class="view">
+    <div class="app-wrapper">
+      <header class="app-header detail-header">
+        <button id="btn-back" class="icon-btn">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+        <div id="detail-title" class="detail-title-wrap">
+          <span id="detail-icon" class="detail-icon-large"></span>
+          <span id="detail-name"></span>
+        </div>
+        <div class="header-actions">
+          <button id="btn-edit-habit" class="icon-btn" title="Editar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          </button>
+          <button id="btn-delete-habit" class="icon-btn icon-btn-danger" title="Eliminar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="detail-content" class="detail-content">
+        <div class="detail-tabs">
+          <button class="detail-tab active" data-range="week">Semana</button>
+          <button class="detail-tab" data-range="month">Mes</button>
+        </div>
+        <div id="detail-grid" class="detail-dot-grid"></div>
+        <div id="detail-stats" class="stats-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: ADD/EDIT HABIT ===================== -->
+  <div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Nuevo hábito</h2>
+        <button id="modal-close" class="icon-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <form id="form-habit">
+        <div class="field">
+          <label>Nombre del hábito</label>
+          <input type="text" id="habit-name" placeholder="Ej: Beber agua" maxlength="40" required />
+        </div>
+        <div class="field">
+          <label>Icono</label>
+          <div id="icon-picker" class="icon-picker"></div>
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <div id="color-picker" class="color-picker"></div>
+        </div>
+        <div class="field">
+          <label>Tipo de hábito</label>
+          <div class="type-toggle">
+            <button type="button" class="type-btn active" data-type="binary">✓ Sí / No</button>
+            <button type="button" class="type-btn" data-type="count">🔢 Cantidad</button>
+          </div>
+        </div>
+        <div id="goal-field" class="field" style="display:none">
+          <label>Meta diaria</label>
+          <input type="number" id="habit-goal" placeholder="Ej: 8 (vasos de agua)" min="1" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-habit" class="btn-secondary">Cancelar</button>
+          <button type="submit" class="btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: COUNT INPUT ===================== -->
+  <div id="count-modal-overlay" class="modal-overlay">
+    <div class="modal modal-small">
+      <div class="modal-header">
+        <h2 id="count-modal-title">Registrar valor</h2>
+        <button id="count-modal-close" class="icon-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="count-input-wrap">
+        <button id="count-minus" class="count-btn">−</button>
+        <input type="number" id="count-value" min="0" value="0" />
+        <button id="count-plus" class="count-btn">+</button>
+      </div>
+      <p id="count-goal-label" class="count-goal-label"></p>
+      <div class="modal-actions">
+        <button id="btn-save-count" class="btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="assets/icons.js"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/habits.js"></script>
+  <script src="js/logs.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
