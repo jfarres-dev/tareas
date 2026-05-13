@@ -1,6 +1,8 @@
 // ============================================================
-// Habit logs: fetch, toggle, update value, stats
+// Habit logs: fetch, toggle, update value, stats, date helpers
 // ============================================================
+
+const DAY_MS = 86400000;
 
 function toDateString(date) {
   return date.toISOString().slice(0, 10);
@@ -9,6 +11,34 @@ function toDateString(date) {
 function today() {
   return toDateString(new Date());
 }
+
+function todayDate() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function fmtKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+function daysAgo(n) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+function sameDay(a, b) {
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth() === b.getMonth() &&
+         a.getDate() === b.getDate();
+}
+
+// ── Supabase log ops ──────────────────────────────────────────
 
 async function fetchLogsForHabit(habitId, fromDate, toDate) {
   const { data, error } = await supabaseClient
@@ -61,7 +91,7 @@ async function toggleLog(habitId, userId, logDate) {
 }
 
 async function setLogValue(habitId, userId, logDate, value, goal) {
-  const completed = value >= goal;
+  const completed = goal ? value >= goal : value > 0;
   const { data: existing } = await supabaseClient
     .from('habit_logs')
     .select('*')
@@ -89,48 +119,113 @@ async function setLogValue(habitId, userId, logDate, value, goal) {
   }
 }
 
-function calcStreak(logs) {
-  const completedDates = new Set(
-    logs.filter(l => l.completed).map(l => l.log_date)
-  );
+// ── Frequency helpers ─────────────────────────────────────────
 
-  let streak = 0;
-  const d = new Date();
-  while (true) {
-    const dateStr = toDateString(d);
-    if (completedDates.has(dateStr)) {
-      streak++;
-      d.setDate(d.getDate() - 1);
+function isScheduledOn(habit, date) {
+  var f = habit.frequency;
+  if (!f || f.kind === 'daily') return true;
+  if (f.kind === 'weekdays') return f.days.indexOf(isoDay(date)) !== -1;
+  // per-week / per-month: every day counts as a potential slot
+  return true;
+}
+
+function freqLabel(f) {
+  if (!f) return 'Cada día';
+  if (f.kind === 'daily') return 'Cada día';
+  if (f.kind === 'weekdays') {
+    if (f.days.length === 7) return 'Cada día';
+    if (f.days.length === 5 && f.days.every(function(d) { return d < 5; })) return 'Lun – Vie';
+    if (f.days.length === 2 && f.days[0] === 5 && f.days[1] === 6) return 'Fines de semana';
+    return f.days.map(function(d) { return WEEKDAYS[d]; }).join(' · ');
+  }
+  if (f.kind === 'per-week') return f.n + '× por semana';
+  if (f.kind === 'per-month') return f.n + '× al mes';
+  return '';
+}
+
+// ── Log map & completion ──────────────────────────────────────
+
+function buildLogMap(habit, allLogs) {
+  var map = {};
+  for (var i = 0; i < allLogs.length; i++) {
+    var log = allLogs[i];
+    if (log.habit_id !== habit.id) continue;
+    if (habit.type === 'binary') {
+      if (log.completed) map[log.log_date] = true;
     } else {
-      break;
+      if (log.value > 0) map[log.log_date] = log.value;
     }
   }
-  return streak;
+  return map;
 }
 
-function calcStats(logs, createdAt) {
-  const completed = logs.filter(l => l.completed);
-  const streak = calcStreak(logs);
-
-  const start = new Date(createdAt);
-  const now = new Date();
-  const daysSinceStart = Math.floor((now - start) / 86400000) + 1;
-
-  const missedDays = Math.max(0, daysSinceStart - completed.length);
-
-  return {
-    streak,
-    daysSinceStart,
-    completions: completed.length,
-    missedDays,
-  };
+function isComplete(habit, val) {
+  if (val == null) return false;
+  if (habit.type === 'binary') return val === true || val === 1;
+  if (habit.type === 'duration' || habit.type === 'count') {
+    return typeof val === 'number' && val >= (habit.target || habit.goal || 1);
+  }
+  return false;
 }
 
+// Enrich habit with normalized color, target alias, and log map
+function enrichHabit(habit, allLogs) {
+  var color = normalizeHabitColor(habit.color);
+  var frequency = habit.frequency || { kind: 'daily' };
+  var target = habit.goal || 1;
+  var enriched = Object.assign({}, habit, {
+    color: color,
+    frequency: frequency,
+    target: target,
+    log: buildLogMap(habit, allLogs),
+  });
+  return enriched;
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+
+function calcCurrentStreak(habit) {
+  var s = 0;
+  for (var i = 0; i < 400; i++) {
+    var d = daysAgo(i);
+    if (!isScheduledOn(habit, d)) continue;
+    var v = habit.log[fmtKey(d)];
+    if (isComplete(habit, v)) s++;
+    else break;
+  }
+  return s;
+}
+
+function calcBestStreak(habit) {
+  var best = 0, cur = 0;
+  for (var i = 365; i >= 0; i--) {
+    var d = daysAgo(i);
+    if (!isScheduledOn(habit, d)) continue;
+    var v = habit.log[fmtKey(d)];
+    if (isComplete(habit, v)) { cur++; if (cur > best) best = cur; }
+    else cur = 0;
+  }
+  return best;
+}
+
+function calcCompletionRate(habit, days) {
+  days = days || 30;
+  var scheduled = 0, done = 0;
+  for (var i = 0; i < days; i++) {
+    var d = daysAgo(i);
+    if (!isScheduledOn(habit, d)) continue;
+    scheduled++;
+    if (isComplete(habit, habit.log[fmtKey(d)])) done++;
+  }
+  return scheduled === 0 ? 0 : Math.round((done / scheduled) * 100);
+}
+
+// Legacy helpers (kept for compatibility)
 function buildDateRange(days) {
-  const dates = [];
-  const d = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(d);
+  var dates = [];
+  var d = new Date();
+  for (var i = days - 1; i >= 0; i--) {
+    var date = new Date(d);
     date.setDate(d.getDate() - i);
     dates.push(toDateString(date));
   }

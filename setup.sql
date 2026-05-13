@@ -49,3 +49,11 @@ create policy "user owns habit_logs"
 create index if not exists idx_habits_user     on habits(user_id);
 create index if not exists idx_logs_habit_date on habit_logs(habit_id, log_date);
 create index if not exists idx_logs_user_date  on habit_logs(user_id, log_date);
+
+-- 6. Nuevas columnas para tipo duración, frecuencia y unidad
+alter table habits add column if not exists unit      text;
+alter table habits add column if not exists frequency jsonb not null default '{"kind":"daily"}';
+alter table habits alter column type drop default;
+alter table habits add constraint habits_type_check2
+  check (type in ('binary', 'count', 'duration')) not valid;
+alter table habits alter column type set default 'binary';

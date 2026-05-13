@@ -13,20 +13,37 @@ async function fetchHabits(userId) {
   return data;
 }
 
-async function createHabit({ userId, name, icon, color, type, goal }) {
+async function createHabit({ userId, name, icon, color, type, goal, unit, frequency }) {
   const { data, error } = await supabaseClient
     .from('habits')
-    .insert([{ user_id: userId, name, icon, color, type, goal: goal || null }])
+    .insert([{
+      user_id: userId,
+      name,
+      icon: icon || 'leaf',
+      color: color || 'sage',
+      type: type || 'binary',
+      goal: goal || null,
+      unit: unit || null,
+      frequency: frequency || { kind: 'daily' },
+    }])
     .select()
     .single();
   if (error) throw error;
   return data;
 }
 
-async function updateHabit(id, { name, icon, color, type, goal }) {
+async function updateHabit(id, { name, icon, color, type, goal, unit, frequency }) {
   const { data, error } = await supabaseClient
     .from('habits')
-    .update({ name, icon, color, type, goal: goal || null })
+    .update({
+      name,
+      icon: icon || 'leaf',
+      color: color || 'sage',
+      type: type || 'binary',
+      goal: goal || null,
+      unit: unit || null,
+      frequency: frequency || { kind: 'daily' },
+    })
     .eq('id', id)
     .select()
     .single();

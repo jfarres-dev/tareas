@@ -1,314 +1,466 @@
 // ============================================================
-// App: main logic, event wiring, router
+// App — state, routing, Supabase CRUD, event handlers
 // ============================================================
+
+// ── Global state ──────────────────────────────────────────────
 
 let currentUser = null;
 let habits = [];
 let allLogs = [];
-let detailHabit = null;
-let detailRange = 'week';
+let currentTab = 'today';
+
+// Onboarding
+let onboardStep = 0;
+let onboardPicked = [];
+
+// Detail
+let detailHabitId = null;
+
+// Create/Edit
 let editingHabitId = null;
+let draft = {};
 
-// ---- Init ----
+// Value sheet
+let valueHabitId = null;
+let valueSheetVal = 0;
+
+// ── Bootstrap ─────────────────────────────────────────────────
+
 async function init() {
-  const session = await getSession();
-  if (session?.user) {
-    currentUser = session.user;
-    await loadDashboard();
-  } else {
-    showView('view-auth');
-  }
-
-  onAuthStateChange(async (session) => {
-    if (session?.user) {
+  try {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
       currentUser = session.user;
       await loadDashboard();
     } else {
-      currentUser = null;
-      habits = [];
-      allLogs = [];
       showView('view-auth');
+      renderAuth('login');
     }
-  });
-
-  wireAuthForms();
-  wireDashboard();
-  wireModal();
-  wireDetailView();
-  wireCountModal();
-}
-
-// ---- Dashboard ----
-async function loadDashboard() {
-  showView('view-dashboard');
-  try {
-    habits = await fetchHabits(currentUser.id);
-    const fromDate = buildDateRange(90)[0];
-    allLogs = await fetchAllLogsForUser(currentUser.id, fromDate);
-    renderAllHabits();
   } catch (e) {
-    showToast('Error cargando hábitos');
-    console.error(e);
-  }
-}
-
-function renderAllHabits() {
-  renderHabits(
-    habits,
-    allLogs,
-    handleCheck,
-    handleDotClick,
-    openDetail
-  );
-}
-
-// ---- Check (binary) ----
-async function handleCheck(habit, dateStr) {
-  if (habit.type === 'count') {
-    const existing = allLogs.find(l => l.habit_id === habit.id && l.log_date === dateStr);
-    openCountModal(habit, existing?.value || 0, async (value) => {
-      try {
-        const log = await setLogValue(habit.id, currentUser.id, dateStr, value, habit.goal);
-        updateLocalLog(log);
-        renderAllHabits();
-        showToast(value >= habit.goal ? '¡Meta alcanzada! 🎉' : `${value} / ${habit.goal} registrado`);
-      } catch (e) { showToast('Error al guardar'); console.error(e); }
-    });
-    return;
+    console.warn('init error (offline?)', e);
+    showView('view-auth');
+    renderAuth('login');
   }
 
   try {
-    const log = await toggleLog(habit.id, currentUser.id, dateStr);
-    updateLocalLog(log);
-    renderAllHabits();
-    showToast(log.completed ? '¡Hábito completado! 🎉' : 'Desmarcado');
-  } catch (e) { showToast('Error al guardar'); console.error(e); }
-}
-
-// ---- Dot click (in grid) ----
-async function handleDotClick(habit, dateStr) {
-  if (habit.type === 'count') {
-    const existing = allLogs.find(l => l.habit_id === habit.id && l.log_date === dateStr);
-    openCountModal(habit, existing?.value || 0, async (value) => {
-      try {
-        const log = await setLogValue(habit.id, currentUser.id, dateStr, value, habit.goal);
-        updateLocalLog(log);
-        renderAllHabits();
-        if (detailHabit?.id === habit.id) refreshDetail();
-      } catch (e) { showToast('Error al guardar'); console.error(e); }
-    });
-    return;
-  }
-
-  try {
-    const log = await toggleLog(habit.id, currentUser.id, dateStr);
-    updateLocalLog(log);
-    renderAllHabits();
-    if (detailHabit?.id === habit.id) refreshDetail();
-  } catch (e) { showToast('Error al guardar'); console.error(e); }
-}
-
-function updateLocalLog(log) {
-  const idx = allLogs.findIndex(l => l.id === log.id);
-  if (idx >= 0) allLogs[idx] = log;
-  else allLogs.push(log);
-}
-
-// ---- Detail view ----
-async function openDetail(habit) {
-  detailHabit = habit;
-  detailRange = 'week';
-  showView('view-detail');
-  await refreshDetail();
-  document.querySelector('.detail-tab[data-range="week"]').classList.add('active');
-  document.querySelector('.detail-tab[data-range="month"]').classList.remove('active');
-}
-
-async function refreshDetail() {
-  if (!detailHabit) return;
-  const days = detailRange === 'week' ? 7 : 35;
-  const fromDate = buildDateRange(days)[0];
-  try {
-    const logs = await fetchLogsForHabit(detailHabit.id, fromDate, today());
-    renderDetail(detailHabit, logs, detailRange);
-  } catch (e) { console.error(e); }
-}
-
-// ---- Auth forms ----
-function wireAuthForms() {
-  // Tab switching
-  document.querySelectorAll('.auth-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-      tab.classList.add('active');
-      document.getElementById(`form-${tab.dataset.tab}`).classList.add('active');
-    });
-  });
-
-  // Login
-  document.getElementById('form-login').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    const errEl = document.getElementById('login-error');
-    errEl.textContent = '';
-    try {
-      await login(email, password);
-    } catch (err) {
-      errEl.textContent = translateAuthError(err.message);
-    }
-  });
-
-  // Register
-  document.getElementById('form-register').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('register-email').value.trim();
-    const password = document.getElementById('register-password').value;
-    const errEl = document.getElementById('register-error');
-    const okEl = document.getElementById('register-success');
-    errEl.textContent = '';
-    okEl.textContent = '';
-    try {
-      await register(email, password);
-      okEl.textContent = 'Cuenta creada. Revisa tu email para confirmar.';
-    } catch (err) {
-      errEl.textContent = translateAuthError(err.message);
-    }
-  });
-}
-
-function translateAuthError(msg) {
-  if (msg.includes('Invalid login')) return 'Email o contraseña incorrectos.';
-  if (msg.includes('already registered')) return 'Este email ya está registrado.';
-  if (msg.includes('Password should')) return 'La contraseña debe tener al menos 6 caracteres.';
-  return msg;
-}
-
-// ---- Dashboard wiring ----
-function wireDashboard() {
-  document.getElementById('btn-view-grid').addEventListener('click', () => {
-    setViewMode('grid');
-    renderAllHabits();
-  });
-  document.getElementById('btn-view-list').addEventListener('click', () => {
-    setViewMode('list');
-    renderAllHabits();
-  });
-  document.getElementById('btn-logout').addEventListener('click', async () => {
-    await logout();
-  });
-  document.getElementById('btn-add-habit').addEventListener('click', () => {
-    editingHabitId = null;
-    openHabitModal(null);
-  });
-}
-
-// ---- Modal wiring ----
-function wireModal() {
-  document.getElementById('modal-close').addEventListener('click', closeHabitModal);
-  document.getElementById('btn-cancel-habit').addEventListener('click', closeHabitModal);
-  document.getElementById('modal-overlay').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeHabitModal();
-  });
-
-  // Type toggle
-  document.querySelectorAll('.type-btn').forEach(btn => {
-    btn.addEventListener('click', () => setTypeBtn(btn.dataset.type));
-  });
-
-  // Form submit
-  document.getElementById('form-habit').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = document.getElementById('habit-name').value.trim();
-    if (!name) return;
-
-    const habitData = {
-      name,
-      icon: getSelectedIcon(),
-      color: normalizeColor(getSelectedColor()),
-      type: getSelectedType(),
-      goal: getSelectedType() === 'count' ? parseInt(document.getElementById('habit-goal').value) || null : null,
-    };
-
-    try {
-      if (editingHabitId) {
-        const updated = await updateHabit(editingHabitId, habitData);
-        const idx = habits.findIndex(h => h.id === editingHabitId);
-        if (idx >= 0) habits[idx] = updated;
-      } else {
-        const created = await createHabit({ userId: currentUser.id, ...habitData });
-        habits.push(created);
+    supabaseClient.auth.onAuthStateChange(async function(event, session) {
+      if (event === 'SIGNED_IN' && session) {
+        currentUser = session.user;
+        await loadDashboard();
+      } else if (event === 'SIGNED_OUT') {
+        currentUser = null;
+        habits = [];
+        allLogs = [];
+        showView('view-auth');
+        renderAuth('login');
       }
-      closeHabitModal();
-      renderAllHabits();
-      showToast(editingHabitId ? 'Hábito actualizado' : 'Hábito creado 🎉');
-    } catch (err) {
-      showToast('Error al guardar');
-      console.error(err);
-    }
-  });
-}
-
-// ---- Detail view wiring ----
-function wireDetailView() {
-  document.getElementById('btn-back').addEventListener('click', () => {
-    showView('view-dashboard');
-    renderAllHabits();
-  });
-
-  document.querySelectorAll('.detail-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      detailRange = tab.dataset.range;
-      refreshDetail();
     });
-  });
-
-  document.getElementById('btn-edit-habit').addEventListener('click', () => {
-    if (!detailHabit) return;
-    editingHabitId = detailHabit.id;
-    openHabitModal(detailHabit);
-  });
-
-  document.getElementById('btn-delete-habit').addEventListener('click', async () => {
-    if (!detailHabit) return;
-    if (!confirm(`¿Eliminar "${detailHabit.name}"?`)) return;
-    try {
-      await deleteHabit(detailHabit.id);
-      habits = habits.filter(h => h.id !== detailHabit.id);
-      detailHabit = null;
-      showView('view-dashboard');
-      renderAllHabits();
-      showToast('Hábito eliminado');
-    } catch (e) { showToast('Error al eliminar'); console.error(e); }
-  });
+  } catch (e) {
+    console.warn('onAuthStateChange setup error', e);
+  }
 }
 
-// ---- Count modal wiring ----
-function wireCountModal() {
-  document.getElementById('count-modal-close').addEventListener('click', closeCountModal);
-  document.getElementById('count-modal-overlay').addEventListener('click', (e) => {
-    if (e.target === e.currentTarget) closeCountModal();
-  });
-  document.getElementById('count-minus').addEventListener('click', () => {
-    const inp = document.getElementById('count-value');
-    inp.value = Math.max(0, (parseInt(inp.value) || 0) - 1);
-  });
-  document.getElementById('count-plus').addEventListener('click', () => {
-    const inp = document.getElementById('count-value');
-    inp.value = (parseInt(inp.value) || 0) + 1;
-  });
+async function loadDashboard() {
+  try {
+    const rawHabits = await fetchHabits(currentUser.id);
+    if (rawHabits.length === 0) {
+      // New user → onboarding
+      onboardStep = 0;
+      onboardPicked = [];
+      showView('view-onboarding');
+      renderOnboarding(0, []);
+      return;
+    }
+    const fromDate = toDateString(daysAgo(90));
+    allLogs = await fetchAllLogsForUser(currentUser.id, fromDate);
+    habits = rawHabits.map(function(h) { return enrichHabit(h, allLogs); });
+    showView('view-app');
+    renderTabBar(currentTab);
+    renderCurrentTab();
+  } catch (e) {
+    console.error('loadDashboard error', e);
+    showToast('Error cargando datos');
+  }
 }
 
-// ---- Util: normalize rgb() color to hex ----
-function normalizeColor(color) {
-  if (color.startsWith('#')) return color;
-  const m = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-  if (!m) return color;
-  return '#' + [m[1],m[2],m[3]].map(n => (+n).toString(16).padStart(2,'0')).join('');
+function renderCurrentTab() {
+  if (currentTab === 'today') {
+    renderToday(currentUser, habits, allLogs);
+  } else {
+    renderHabitsList(currentUser, habits, allLogs);
+  }
 }
 
-// ---- Boot ----
-document.addEventListener('DOMContentLoaded', init);
+// ── Auth ──────────────────────────────────────────────────────
+
+function switchAuthMode(mode) {
+  renderAuth(mode);
+}
+
+async function handleAuthSubmit(event) {
+  event.preventDefault();
+  const emailEl = document.getElementById('auth-email');
+  const passwordEl = document.getElementById('auth-password');
+  const nameEl = document.getElementById('auth-name');
+  const errEl = document.getElementById('auth-error');
+  const email = emailEl ? emailEl.value.trim() : '';
+  const password = passwordEl ? passwordEl.value : '';
+  const name = nameEl ? nameEl.value.trim() : '';
+  if (errEl) errEl.classList.add('hidden');
+
+  try {
+    let result;
+    if (nameEl) {
+      // Signup
+      result = await supabaseClient.auth.signUp({
+        email,
+        password,
+        options: { data: { name } },
+      });
+    } else {
+      // Login
+      result = await supabaseClient.auth.signInWithPassword({ email, password });
+    }
+    if (result.error) throw result.error;
+  } catch (e) {
+    if (errEl) {
+      errEl.textContent = e.message || 'Error de autenticación';
+      errEl.classList.remove('hidden');
+    }
+  }
+}
+
+// ── Onboarding ────────────────────────────────────────────────
+
+function onboardNext(step) {
+  onboardStep = step;
+  renderOnboarding(step, onboardPicked);
+}
+
+function toggleSuggestion(index) {
+  var pos = onboardPicked.indexOf(index);
+  if (pos === -1) {
+    onboardPicked.push(index);
+  } else {
+    onboardPicked.splice(pos, 1);
+  }
+  renderOnboarding(onboardStep, onboardPicked);
+}
+
+function skipOnboarding() {
+  onboardPicked = [];
+  finishOnboarding();
+}
+
+async function finishOnboarding() {
+  try {
+    var promises = onboardPicked.map(function(i) {
+      var s = SUGGESTIONS[i];
+      return createHabit({
+        userId: currentUser.id,
+        name: s.name,
+        icon: s.icon,
+        color: s.color,
+        type: s.type,
+        goal: s.goal,
+        unit: s.unit,
+        frequency: { kind: 'daily' },
+      });
+    });
+    await Promise.all(promises);
+    await loadDashboard();
+  } catch (e) {
+    console.error('finishOnboarding error', e);
+    await loadDashboard();
+  }
+}
+
+// ── Tab navigation ────────────────────────────────────────────
+
+function switchTab(tab) {
+  currentTab = tab;
+  renderTabBar(tab);
+  renderCurrentTab();
+}
+
+// ── Detail overlay ────────────────────────────────────────────
+
+function openDetail(habitId) {
+  detailHabitId = habitId;
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+  renderDetail(habit, allLogs);
+  showOverlay('overlay-detail');
+}
+
+function closeDetail() {
+  hideOverlay('overlay-detail');
+  detailHabitId = null;
+}
+
+// ── Create / Edit overlay ─────────────────────────────────────
+
+function openCreate() {
+  editingHabitId = null;
+  draft = { type: 'binary', color: 'sage', icon: 'leaf', frequency: { kind: 'daily' } };
+  renderCreate(draft, false);
+  showOverlay('overlay-create');
+}
+
+function openEdit(habitId) {
+  editingHabitId = habitId;
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+  draft = {
+    name: habit.name,
+    type: habit.type,
+    color: habit.color,
+    icon: habit.icon || 'leaf',
+    goal: habit.goal,
+    unit: habit.unit,
+    frequency: habit.frequency || { kind: 'daily' },
+  };
+  renderCreate(draft, true);
+  showOverlay('overlay-create');
+}
+
+function closeCreate() {
+  hideOverlay('overlay-create');
+}
+
+// Draft field updaters (called from form oninput/onclick)
+function updateDraftName(val) { draft.name = val; }
+function updateDraftTarget(val) { draft.goal = val ? Number(val) : null; }
+function updateDraftUnit(val) { draft.unit = val; }
+
+function setDraftType(val) {
+  draft.type = val;
+  renderCreate(draft, !!editingHabitId);
+}
+
+function setDraftColor(val) {
+  draft.color = val;
+  renderCreate(draft, !!editingHabitId);
+}
+
+function setDraftIcon(val) {
+  draft.icon = val;
+  renderCreate(draft, !!editingHabitId);
+}
+
+function setDraftFreqKind(kind) {
+  draft.frequency = { kind: kind };
+  if (kind === 'weekdays') draft.frequency.days = [0,1,2,3,4];
+  if (kind === 'per-week' || kind === 'per-month') draft.frequency.n = 3;
+  renderCreate(draft, !!editingHabitId);
+}
+
+function toggleFreqDay(dayIndex) {
+  if (!draft.frequency) draft.frequency = { kind: 'weekdays', days: [] };
+  var days = draft.frequency.days || [];
+  var pos = days.indexOf(dayIndex);
+  if (pos === -1) days.push(dayIndex);
+  else days.splice(pos, 1);
+  days.sort(function(a, b) { return a - b; });
+  draft.frequency.days = days;
+  renderCreate(draft, !!editingHabitId);
+}
+
+function setDraftFreqN(n) {
+  if (!draft.frequency) return;
+  draft.frequency.n = n;
+  renderCreate(draft, !!editingHabitId);
+}
+
+async function saveHabit() {
+  if (!draft.name || !draft.name.trim()) {
+    showToast('El nombre es obligatorio');
+    return;
+  }
+  try {
+    if (editingHabitId) {
+      await updateHabit(editingHabitId, {
+        name: draft.name.trim(),
+        icon: draft.icon || 'leaf',
+        color: draft.color || 'sage',
+        type: draft.type || 'binary',
+        goal: draft.goal || null,
+        unit: draft.unit || null,
+        frequency: draft.frequency || { kind: 'daily' },
+      });
+      showToast('Hábito actualizado');
+    } else {
+      await createHabit({
+        userId: currentUser.id,
+        name: draft.name.trim(),
+        icon: draft.icon || 'leaf',
+        color: draft.color || 'sage',
+        type: draft.type || 'binary',
+        goal: draft.goal || null,
+        unit: draft.unit || null,
+        frequency: draft.frequency || { kind: 'daily' },
+      });
+      showToast('Hábito creado');
+    }
+    closeCreate();
+    if (detailHabitId) closeDetail();
+    await reloadHabits();
+  } catch (e) {
+    console.error('saveHabit error', e);
+    showToast('Error al guardar');
+  }
+}
+
+async function deleteCurrentHabit() {
+  if (!editingHabitId) return;
+  if (!confirm('¿Eliminar este hábito? No se puede deshacer.')) return;
+  try {
+    await deleteHabit(editingHabitId);
+    closeCreate();
+    closeDetail();
+    showToast('Hábito eliminado');
+    await reloadHabits();
+  } catch (e) {
+    console.error('deleteHabit error', e);
+    showToast('Error al eliminar');
+  }
+}
+
+// ── Habit interaction ─────────────────────────────────────────
+
+async function handleCheck(habitId) {
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+
+  if (habit.type !== 'binary') {
+    // Open value sheet for count/duration
+    openValueSheet(habitId);
+    return;
+  }
+
+  try {
+    var todayStr = today();
+    var updated = await toggleLog(habit.id, currentUser.id, todayStr);
+    await reloadHabits();
+    // Re-render detail if open
+    if (detailHabitId === habitId) {
+      var refreshed = habits.find(function(h) { return h.id === habitId; });
+      if (refreshed) renderDetail(refreshed, allLogs);
+    }
+  } catch (e) {
+    console.error('handleCheck error', e);
+    showToast('Error al registrar');
+  }
+}
+
+async function handleDetailDecrement(habitId) {
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+  var todayStr = today();
+  var current = typeof habit.log[todayStr] === 'number' ? habit.log[todayStr] : 0;
+  var step = habit.type === 'duration' ? 5 : 1;
+  var newVal = Math.max(0, current - step);
+  try {
+    await setLogValue(habit.id, currentUser.id, todayStr, newVal, habit.target || habit.goal);
+    await reloadHabits();
+    var refreshed = habits.find(function(h) { return h.id === habitId; });
+    if (refreshed) renderDetail(refreshed, allLogs);
+  } catch (e) {
+    console.error('handleDetailDecrement error', e);
+  }
+}
+
+async function handleDetailIncrement(habitId) {
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+  var todayStr = today();
+  var current = typeof habit.log[todayStr] === 'number' ? habit.log[todayStr] : 0;
+  var step = habit.type === 'duration' ? 5 : 1;
+  var newVal = current + step;
+  try {
+    await setLogValue(habit.id, currentUser.id, todayStr, newVal, habit.target || habit.goal);
+    await reloadHabits();
+    var refreshed = habits.find(function(h) { return h.id === habitId; });
+    if (refreshed) renderDetail(refreshed, allLogs);
+  } catch (e) {
+    console.error('handleDetailIncrement error', e);
+  }
+}
+
+// ── Value sheet ───────────────────────────────────────────────
+
+function openValueSheet(habitId) {
+  valueHabitId = habitId;
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+  var todayStr = today();
+  valueSheetVal = typeof habit.log[todayStr] === 'number' ? habit.log[todayStr] : 0;
+  renderValueSheet(habit, valueSheetVal);
+}
+
+function adjustValue(delta) {
+  var habit = habits.find(function(h) { return h.id === valueHabitId; });
+  var step = habit && habit.type === 'duration' ? 5 : 1;
+  valueSheetVal = Math.max(0, valueSheetVal + delta * step);
+  var numEl = document.getElementById('value-num');
+  if (numEl) numEl.textContent = valueSheetVal;
+}
+
+async function confirmValue() {
+  var habit = habits.find(function(h) { return h.id === valueHabitId; });
+  if (!habit) return;
+  try {
+    var todayStr = today();
+    await setLogValue(habit.id, currentUser.id, todayStr, valueSheetVal, habit.target || habit.goal);
+    closeValueSheet();
+    await reloadHabits();
+    if (detailHabitId === valueHabitId) {
+      var refreshed = habits.find(function(h) { return h.id === valueHabitId; });
+      if (refreshed) renderDetail(refreshed, allLogs);
+    }
+    showToast('Registrado');
+  } catch (e) {
+    console.error('confirmValue error', e);
+    showToast('Error al guardar');
+  }
+}
+
+function closeValueSheet() {
+  var el = document.getElementById('sheet-value');
+  if (el) el.innerHTML = '';
+  valueHabitId = null;
+}
+
+// ── Profile sheet ─────────────────────────────────────────────
+
+function openProfile() {
+  renderProfile(currentUser, habits);
+}
+
+function closeProfile() {
+  var el = document.getElementById('sheet-profile');
+  if (el) el.innerHTML = '';
+}
+
+async function handleLogout() {
+  closeProfile();
+  await supabaseClient.auth.signOut();
+}
+
+// ── Data refresh ──────────────────────────────────────────────
+
+async function reloadHabits() {
+  try {
+    const rawHabits = await fetchHabits(currentUser.id);
+    const fromDate = toDateString(daysAgo(90));
+    allLogs = await fetchAllLogsForUser(currentUser.id, fromDate);
+    habits = rawHabits.map(function(h) { return enrichHabit(h, allLogs); });
+    renderCurrentTab();
+  } catch (e) {
+    console.error('reloadHabits error', e);
+  }
+}
+
+// ── Start ─────────────────────────────────────────────────────
+
+init();
