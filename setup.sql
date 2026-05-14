@@ -57,3 +57,7 @@ alter table habits alter column type drop default;
 alter table habits add constraint habits_type_check2
   check (type in ('binary', 'count', 'duration')) not valid;
 alter table habits alter column type set default 'binary';
+
+-- 7. Límites de longitud (defensa en profundidad — además del maxlength del cliente)
+alter table habits add constraint habits_name_length check (char_length(name) between 1 and 60) not valid;
+alter table habits add constraint habits_unit_length check (unit is null or char_length(unit) <= 20) not valid;

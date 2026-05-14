@@ -154,9 +154,9 @@ function skipOnboarding() {
 
 async function finishOnboarding() {
   try {
-    var promises = onboardPicked.map(function(i) {
-      var s = SUGGESTIONS[i];
-      return createHabit({
+    for (var i = 0; i < onboardPicked.length; i++) {
+      var s = SUGGESTIONS[onboardPicked[i]];
+      await createHabit({
         userId: currentUser.id,
         name: s.name,
         icon: s.icon,
@@ -166,8 +166,7 @@ async function finishOnboarding() {
         unit: s.unit,
         frequency: { kind: 'daily' },
       });
-    });
-    await Promise.all(promises);
+    }
     await loadDashboard();
   } catch (e) {
     console.error('finishOnboarding error', e);

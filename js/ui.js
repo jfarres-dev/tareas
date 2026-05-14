@@ -81,13 +81,13 @@ function renderAuth(mode) {
     + '<form class="auth-form-area" onsubmit="handleAuthSubmit(event)">'
     + (isLogin ? '' :
       '<div class="auth-input-row">'
-      + '<input id="auth-name" type="text" placeholder="Tu nombre" autocomplete="name" />'
+      + '<input id="auth-name" type="text" placeholder="Tu nombre" autocomplete="name" maxlength="60" required />'
       + '</div>')
     + '<div class="auth-input-row">'
-    + '<input id="auth-email" type="email" placeholder="Correo electrónico" autocomplete="email" required />'
+    + '<input id="auth-email" type="email" placeholder="Correo electrónico" autocomplete="email" maxlength="254" required />'
     + '</div>'
     + '<div class="auth-input-row">'
-    + '<input id="auth-password" type="password" placeholder="Contraseña" autocomplete="' + (isLogin ? 'current-password' : 'new-password') + '" required />'
+    + '<input id="auth-password" type="password" placeholder="Contraseña" autocomplete="' + (isLogin ? 'current-password' : 'new-password') + '" minlength="6" maxlength="72" required />'
     + '</div>'
     + '<button class="btn-primary" type="submit">' + (isLogin ? 'Entrar' : 'Crear cuenta') + '</button>'
     + '<p id="auth-error" class="auth-error hidden"></p>'
@@ -191,7 +191,7 @@ function renderToday(user, habits, allLogs) {
     '<div class="page-header">'
     + '<div class="page-header-left">'
     + '<p class="page-date">' + _fmtToday() + '</p>'
-    + '<h2 class="page-title">Buenos días' + (user && user.user_metadata && user.user_metadata.name ? ', ' + user.user_metadata.name.split(' ')[0] : '') + '</h2>'
+    + '<h2 class="page-title">Buenos días' + (user && user.user_metadata && user.user_metadata.name ? ', ' + _esc(user.user_metadata.name.split(' ')[0]) : '') + '</h2>'
     + '</div>'
     + '<button class="avatar-btn" onclick="openProfile()">' + buildAvatar(user, 36) + '</button>'
     + '</div>';
@@ -492,7 +492,7 @@ function renderCreate(draft, isEditing) {
     + '<div class="overlay-body form-body">'
     + '<div class="form-section">'
     + '<label class="form-label">Nombre</label>'
-    + '<input class="input" id="draft-name" type="text" placeholder="Nombre del hábito" value="' + _esc(draft.name || '') + '" oninput="updateDraftName(this.value)" />'
+    + '<input class="input" id="draft-name" type="text" placeholder="Nombre del hábito" maxlength="60" value="' + _esc(draft.name || '') + '" oninput="updateDraftName(this.value)" />'
     + '</div>'
     + '<div class="form-section">'
     + '<label class="form-label">Tipo</label>'
@@ -510,7 +510,7 @@ function renderCreate(draft, isEditing) {
         + '</div>'
         + '<div class="form-col">'
         + '<label class="form-label">Unidad</label>'
-        + '<input class="input" id="draft-unit" type="text" placeholder="' + (draft.type === 'duration' ? 'min' : 'veces') + '" value="' + _esc(draft.unit || '') + '" oninput="updateDraftUnit(this.value)" />'
+        + '<input class="input" id="draft-unit" type="text" maxlength="20" placeholder="' + (draft.type === 'duration' ? 'min' : 'veces') + '" value="' + _esc(draft.unit || '') + '" oninput="updateDraftUnit(this.value)" />'
         + '</div>'
         + '</div>'
       : '')
