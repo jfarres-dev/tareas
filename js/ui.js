@@ -69,25 +69,33 @@ function renderAuth(mode) {
   mode = mode || 'login';
   var isLogin = mode === 'login';
   document.getElementById('view-auth').innerHTML =
-    '<div class="auth-bg">'
-    + '<div class="auth-card">'
-    + '<div class="auth-brand">'
-    + icon('leaf', 36, 'var(--accent)', 1.5)
-    + '<h1 class="auth-title">Hábitos</h1>'
-    + '<p class="auth-sub">Tu espacio para crecer cada día</p>'
+    '<div class="auth-brand">'
+    + '<div class="auth-brand-icon">' + icon('leaf', 18, 'var(--paper)', 1.5) + '</div>'
+    + '<span class="auth-brand-name">Hábitos</span>'
     + '</div>'
-    + '<form class="auth-form" onsubmit="handleAuthSubmit(event)">'
-    + (isLogin ? '' : '<input class="input" type="text" id="auth-name" placeholder="Tu nombre" autocomplete="name" />')
-    + '<input class="input" type="email" id="auth-email" placeholder="Correo electrónico" autocomplete="email" required />'
-    + '<input class="input" type="password" id="auth-password" placeholder="Contraseña" autocomplete="' + (isLogin ? 'current-password' : 'new-password') + '" required />'
+    + '<div class="auth-headline">'
+    + (isLogin
+      ? '<h1>Bienvenido<br><em>de nuevo</em></h1><p>Accede a tus hábitos y sigue creciendo.</p>'
+      : '<h1>Empieza<br><em>hoy mismo</em></h1><p>Crea tu cuenta y construye tus rutinas.</p>')
+    + '</div>'
+    + '<form class="auth-form-area" onsubmit="handleAuthSubmit(event)">'
+    + (isLogin ? '' :
+      '<div class="auth-input-row">'
+      + '<input id="auth-name" type="text" placeholder="Tu nombre" autocomplete="name" />'
+      + '</div>')
+    + '<div class="auth-input-row">'
+    + '<input id="auth-email" type="email" placeholder="Correo electrónico" autocomplete="email" required />'
+    + '</div>'
+    + '<div class="auth-input-row">'
+    + '<input id="auth-password" type="password" placeholder="Contraseña" autocomplete="' + (isLogin ? 'current-password' : 'new-password') + '" required />'
+    + '</div>'
     + '<button class="btn-primary" type="submit">' + (isLogin ? 'Entrar' : 'Crear cuenta') + '</button>'
-    + '</form>'
-    + '<p class="auth-switch">'
-    + (isLogin ? '¿No tienes cuenta? <button class="link-btn" onclick="switchAuthMode(\'signup\')">Regístrate</button>'
-               : '¿Ya tienes cuenta? <button class="link-btn" onclick="switchAuthMode(\'login\')">Entra aquí</button>')
-    + '</p>'
     + '<p id="auth-error" class="auth-error hidden"></p>'
-    + '</div>'
+    + '</form>'
+    + '<div class="auth-toggle">'
+    + (isLogin
+      ? '¿No tienes cuenta? <a onclick="switchAuthMode(\'signup\')">Regístrate</a>'
+      : '¿Ya tienes cuenta? <a onclick="switchAuthMode(\'login\')">Entra aquí</a>')
     + '</div>';
 }
 
@@ -127,8 +135,8 @@ function renderOnboarding(step, picked) {
       + '<p class="onb-body">Elige los que te inspiren. Siempre puedes añadir más.</p>'
       + '<div class="onb-suggest-grid">' + rows + '</div>'
       + '<div class="onb-actions">'
-      + '<button class="btn-ghost" onclick="onboardNext(2)">Omitir</button>'
-      + '<button class="btn-primary" onclick="onboardNext(2)" ' + (picked.length === 0 ? 'style="opacity:.5"' : '') + '>Continuar</button>'
+      + '<button class="btn-ghost" onclick="skipOnboarding()">Omitir</button>'
+      + '<button class="btn-primary" onclick="onboardNext(2)" ' + (picked.length === 0 ? 'disabled' : '') + '>Continuar</button>'
       + '</div>'
       + '</div>'
       + '<div class="onb-dots">'

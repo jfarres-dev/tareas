@@ -54,7 +54,8 @@ input, textarea, select { font-family: inherit; color: inherit; outline: none; }
   background: var(--bg);
   overflow: hidden;
 }
-.view.hidden { display: none; }
+.view.hidden { display: none !important; }
+.hidden { display: none !important; }
 
 /* Full-screen overlays (detail, create) — slide in from right */
 .overlay {
@@ -66,7 +67,7 @@ input, textarea, select { font-family: inherit; color: inherit; outline: none; }
   overflow: hidden;
   z-index: 10;
 }
-.overlay.hidden { display: none; }
+.overlay.hidden { display: none !important; }
 .overlay.active { animation: pageIn 0.28s cubic-bezier(.2,.9,.4,1) both; }
 
 /* Main app shell inside #view-app */
@@ -216,7 +217,6 @@ input, textarea, select { font-family: inherit; color: inherit; outline: none; }
 #view-auth {
   background: var(--bg);
   padding: 24px 28px 28px;
-  justify-content: space-between;
 }
 .auth-brand {
   display: flex;
@@ -331,6 +331,7 @@ input, textarea, select { font-family: inherit; color: inherit; outline: none; }
 }
 .auth-social-btn:active { transform: scale(0.97); opacity: 0.85; }
 .auth-toggle {
+  margin-top: auto;
   padding-top: 18px;
   text-align: center;
   font-size: 14px;
@@ -1049,6 +1050,7 @@ input[type=number].input::-webkit-inner-spin-button { -webkit-appearance:none; }
 /* Buttons */
 .btn-primary { width:100%; height:50px; border-radius:14px; background:var(--ink); color:var(--paper); font-family:var(--sans); font-size:16px; font-weight:500; border:none; cursor:pointer; transition:opacity 0.12s, transform 0.12s; }
 .btn-primary:active { transform:scale(0.98); opacity:0.9; }
+.btn-primary:disabled { opacity:0.45; cursor:default; pointer-events:none; }
 .btn-ghost { flex:1; height:48px; border-radius:14px; background:transparent; border:1px solid var(--line); font-size:15px; font-weight:500; color:var(--ink-soft); cursor:pointer; transition:background 0.12s; }
 .btn-ghost:active { background:var(--bg-2); }
 .btn-danger { width:100%; height:48px; border-radius:14px; background:oklch(0.94 0.04 25); color:var(--danger); border:none; font-size:15px; font-weight:500; cursor:pointer; font-family:var(--sans); }
@@ -1076,6 +1078,8 @@ input[type=number].input::-webkit-inner-spin-button { -webkit-appearance:none; }
 .onb-suggest-name { font-size:14px; font-weight:500; line-height:1.2; }
 .onb-suggest-check { width:20px; height:20px; border-radius:10px; background:var(--ink); display:flex; align-items:center; justify-content:center; align-self:flex-end; }
 .onb-actions { display:flex; gap:12px; padding:12px 28px 24px; flex-shrink:0; }
+.onb-card--pick .onb-title,
+.onb-card--pick .onb-body { padding-left:28px; padding-right:28px; }
 
 /* Tab bar (ui.js names) */
 .tab-bar { display:flex; align-items:stretch; }
