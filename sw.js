@@ -1,4 +1,4 @@
-const CACHE_NAME = 'habitos-v1';
+const CACHE_NAME = 'habitos-v__DEPLOY_TIME__';
 
 // Solo assets propios del app shell — nunca APIs ni CDNs externas
 const SHELL_ASSETS = [
