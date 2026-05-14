@@ -33,9 +33,24 @@ const ICON_PATHS = {
   music:       `<path d="M9 18V6l11-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>`,
   walk:        `<circle cx="13" cy="5" r="2"/><path d="M9 21l3-7-2-3 5-3 3 4 3 1M9 14l-2-2-3 1"/>`,
   phone:       `<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>`,
+  heart:       `<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>`,
+  bike:        `<circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><circle cx="15" cy="5" r="1" fill="$c" stroke="none"/><path d="M12 17.5V14l-3-3 4-3 2 3h2"/>`,
+  bed:         `<path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v9"/>`,
+  headphones:  `<path d="M3 14h3a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-5a9 9 0 0 1 18 0v5a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2h3"/>`,
+  star:        `<polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/>`,
+  eye:         `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`,
+  camera:      `<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>`,
+  pill:        `<path d="m10.5 20.5 10-10a5 5 0 0 0-7-7l-10 10a5 5 0 0 0 7 7z"/><path d="M8.5 8.5 16 16"/>`,
+  tree:        `<path d="M12 22v-8M5 18l7-8 7 8M7 12l5-6 5 6"/>`,
+  wind:        `<path d="M9.6 4.6A2 2 0 1 1 11 8H2M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2M12.6 19.4A2 2 0 1 0 14 16H2"/>`,
+  chart:       `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
+  palette:     `<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10.5" r="1.5" fill="$c" stroke="none"/><circle cx="12" cy="7.5" r="1.5" fill="$c" stroke="none"/><circle cx="15.5" cy="10.5" r="1.5" fill="$c" stroke="none"/><circle cx="14" cy="14.5" r="1.5" fill="$c" stroke="none"/>`,
+  apple:       `<path d="M17 8a6 6 0 0 0-10 0c-1 2-1 7 0 9a5 5 0 0 0 10 0c1-2 1-7 0-9z"/><path d="M12 8V5M14.5 4a3 3 0 0 0-2.5 1"/>`,
+  stretch:     `<circle cx="12" cy="4" r="2"/><path d="M12 6v5M9 14l3-3 3 3M7 21l2-6M17 21l-2-6"/>`,
+  bowl:        `<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M3 11h18M12 19v2M9 21h6"/>`,
 };
 
-const ICON_OPTIONS = ['leaf','droplet','book','walk','yoga','pen','sun','moon','coffee','music','dumbbell','flame','target','sparkle','phone'];
+const ICON_OPTIONS = ['leaf','droplet','book','walk','yoga','pen','sun','moon','coffee','music','dumbbell','flame','target','sparkle','phone','heart','bike','bed','headphones','star','eye','camera','pill','tree','wind','chart','palette','apple','stretch','bowl'];
 
 function icon(name, size, color, strokeWidth) {
   size = size || 22;
