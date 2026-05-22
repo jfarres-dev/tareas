@@ -352,12 +352,28 @@ async function handleCheck(habitId) {
   }
 }
 
+async function handleQuickIncrement(habitId) {
+  var habit = habits.find(function(h) { return h.id === habitId; });
+  if (!habit) return;
+  var todayStr = today();
+  var current = typeof habit.log[todayStr] === 'number' ? habit.log[todayStr] : 0;
+  var step = getHabitStep(habit);
+  var newVal = current + step;
+  try {
+    await setLogValue(habit.id, currentUser.id, todayStr, newVal, habit.target || habit.goal);
+    await reloadHabits();
+  } catch (e) {
+    console.error('handleQuickIncrement error', e);
+    showToast('Error al registrar');
+  }
+}
+
 async function handleDetailDecrement(habitId) {
   var habit = habits.find(function(h) { return h.id === habitId; });
   if (!habit) return;
   var todayStr = today();
   var current = typeof habit.log[todayStr] === 'number' ? habit.log[todayStr] : 0;
-  var step = habit.type === 'duration' ? 5 : 1;
+  var step = getHabitStep(habit);
   var newVal = Math.max(0, current - step);
   try {
     await setLogValue(habit.id, currentUser.id, todayStr, newVal, habit.target || habit.goal);
@@ -374,7 +390,7 @@ async function handleDetailIncrement(habitId) {
   if (!habit) return;
   var todayStr = today();
   var current = typeof habit.log[todayStr] === 'number' ? habit.log[todayStr] : 0;
-  var step = habit.type === 'duration' ? 5 : 1;
+  var step = getHabitStep(habit);
   var newVal = current + step;
   try {
     await setLogValue(habit.id, currentUser.id, todayStr, newVal, habit.target || habit.goal);
@@ -399,7 +415,7 @@ function openValueSheet(habitId) {
 
 function adjustValue(delta) {
   var habit = habits.find(function(h) { return h.id === valueHabitId; });
-  var step = habit && habit.type === 'duration' ? 5 : 1;
+  var step = habit ? getHabitStep(habit) : 1;
   valueSheetVal = Math.max(0, valueSheetVal + delta * step);
   var numEl = document.getElementById('value-num');
   if (numEl) numEl.textContent = valueSheetVal;

@@ -230,6 +230,15 @@ function buildTodayRow(habit, value) {
   var check = '<button class="check-btn" onclick="handleCheck(\'' + habit.id + '\')" style="display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;padding:4px;border-radius:50%;flex-shrink:0;-webkit-tap-highlight-color:transparent">'
     + buildCheckCircle(habit, value, 34)
     + '</button>';
+
+  var quickBtn = '';
+  if (!done && (habit.type === 'count' || habit.type === 'duration')) {
+    var step = getHabitStep(habit);
+    quickBtn = '<button class="today-increment-btn" onclick="handleQuickIncrement(\'' + habit.id + '\')" style="background:' + c.bg + ';color:' + c.ink + '">+ ' + step + '</button>';
+  }
+
+  var actions = '<div class="today-row-actions">' + quickBtn + check + '</div>';
+
   return '<div class="today-row' + (done ? ' done' : '') + '" style="' + (done ? '--row-bg:' + c.bg : '') + '">'
     + '<button class="today-row-info" onclick="openDetail(\'' + habit.id + '\')">'
     + buildHabitIcon(habit, done, 40)
@@ -238,7 +247,7 @@ function buildTodayRow(habit, value) {
     + '<div class="today-row-meta">' + sub + streakBadge + '</div>'
     + '</div>'
     + '</button>'
-    + check
+    + actions
     + '</div>';
 }
 
@@ -360,7 +369,6 @@ function buildTodayAction(habit, value) {
   var target = habit.target || habit.goal || 1;
   var unit = habit.unit || (habit.type === 'duration' ? 'min' : '');
   var pct = Math.min(val / target, 1);
-  var step = habit.type === 'duration' ? 5 : 1;
   return '<div class="today-action">'
     + '<div class="action-counter">'
     + '<button class="counter-btn" onclick="handleDetailDecrement(\'' + habit.id + '\')">' + icon('chevronLeft', 20, 'var(--ink)', 2) + '</button>'

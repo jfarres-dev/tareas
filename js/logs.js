@@ -168,6 +168,12 @@ function isComplete(habit, val) {
   return false;
 }
 
+function getHabitStep(habit) {
+  var u = parseFloat(habit.unit);
+  if (!isNaN(u) && u > 0) return u;
+  return habit.step || (habit.type === 'duration' ? 5 : 1);
+}
+
 // Enrich habit with normalized color, target alias, and log map
 function enrichHabit(habit, allLogs) {
   var color = normalizeHabitColor(habit.color);
