@@ -21,6 +21,21 @@
   --serif:     'Instrument Serif', 'Times New Roman', serif;
   --sans:      'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --mono:      'Geist Mono', ui-monospace, 'SF Mono', monospace;
+  --tab-bar-bg: rgba(251,248,243,0.92);
+}
+
+html[data-theme="dark"] {
+  --bg:         #1c1a17;
+  --bg-2:       #231f1b;
+  --paper:      #201d1a;
+  --surface:    #2c2824;
+  --ink:        #f0ebe3;
+  --ink-2:      #c5bdb0;
+  --ink-soft:   #8a8278;
+  --ink-mute:   #5a544d;
+  --line:       #3a3530;
+  --line-2:     #302c28;
+  --tab-bar-bg: rgba(32,29,26,0.92);
 }
 
 /* ── Reset ──────────────────────────────────────────────────── */
@@ -125,7 +140,7 @@ input, textarea, select { font-family: inherit; color: inherit; outline: none; }
 /* ── Tab bar ─────────────────────────────────────────────────── */
 #tab-bar {
   position: relative;
-  background: rgba(251,248,243,0.92);
+  background: var(--tab-bar-bg);
   backdrop-filter: blur(14px) saturate(180%);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
   border-top: 1px solid var(--line);

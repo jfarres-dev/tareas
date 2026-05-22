@@ -170,7 +170,7 @@ function renderTabBar(currentTab) {
     + '</button>'
     + '<div class="tab-fab-space">'
     + '<button class="tab-fab" onclick="openCreate()" aria-label="Nuevo hábito">'
-    + icon('plus', 24, '#fff', 2)
+    + icon('plus', 24, 'var(--paper)', 2)
     + '</button>'
     + '</div>'
     + '<button class="tab-item' + (currentTab === 'habits' ? ' active' : '') + '" onclick="switchTab(\'habits\')">'
@@ -223,7 +223,7 @@ function buildTodayRow(habit, value) {
   if (habit.type === 'count' || habit.type === 'duration') {
     var val = typeof value === 'number' ? value : 0;
     var target = habit.target || habit.goal || 1;
-    sub = '<span class="today-row-sub">' + val + ' / ' + target + (habit.unit ? ' ' + habit.unit : '') + '</span>';
+    sub = '<span class="today-row-sub">' + val + ' / ' + target + (habit.unit ? ' ' + _esc(habit.unit) : '') + '</span>';
   } else {
     sub = '<span class="today-row-sub">' + freqLabel(habit.frequency) + '</span>';
   }
@@ -367,7 +367,7 @@ function buildTodayAction(habit, value) {
   }
   var val = typeof value === 'number' ? value : 0;
   var target = habit.target || habit.goal || 1;
-  var unit = habit.unit || (habit.type === 'duration' ? 'min' : '');
+  var unit = _esc(habit.unit || (habit.type === 'duration' ? 'min' : ''));
   var pct = Math.min(val / target, 1);
   return '<div class="today-action">'
     + '<div class="action-counter">'
@@ -476,7 +476,7 @@ function buildHistory(habit) {
     if (habit.type === 'binary') {
       valStr = done ? 'Completado' : '—';
     } else {
-      valStr = typeof val === 'number' ? val + (habit.unit ? ' ' + habit.unit : '') : '—';
+      valStr = typeof val === 'number' ? val + (habit.unit ? ' ' + _esc(habit.unit) : '') : '—';
     }
     rows += '<div class="history-row">'
       + '<span class="history-date">' + label + '</span>'
@@ -625,6 +625,9 @@ function renderProfile(user, habits) {
     + '</div>'
     + '<div class="sheet-actions">'
     + '<button class="sheet-btn" onclick="closeProfile();openCreate()">' + icon('plus', 18, 'var(--ink)', 1.7) + '<span>Nuevo hábito</span></button>'
+    + '<button class="sheet-btn" onclick="handleThemeToggle()">' + icon(currentTheme === 'dark' ? 'sun' : 'moon', 18, 'var(--ink)', 1.7) + '<span>' + (currentTheme === 'dark' ? 'Modo claro' : 'Modo oscuro') + '</span></button>'
+    + ((!isStandalone() && deferredInstallPrompt) ? '<button class="sheet-btn" onclick="handleInstallPWA()">' + icon('phone', 18, 'var(--ink)', 1.7) + '<span>Instalar app</span></button>' : '')
+    + ((!isStandalone() && !deferredInstallPrompt && isIOS()) ? '<button class="sheet-btn" onclick="showIOSInstallHint()">' + icon('phone', 18, 'var(--ink)', 1.7) + '<span>Instalar en iPhone</span></button>' : '')
     + '<button class="sheet-btn danger" onclick="handleLogout()">' + icon('arrow', 18, 'var(--danger)', 1.7) + '<span>Cerrar sesión</span></button>'
     + '</div>'
     + '</div>';
@@ -636,7 +639,7 @@ function renderProfile(user, habits) {
 function renderValueSheet(habit, currentValue) {
   var val = typeof currentValue === 'number' ? currentValue : 0;
   var target = habit.target || habit.goal || 1;
-  var unit = habit.unit || '';
+  var unit = _esc(habit.unit || '');
   var c = colorById(habit.color);
 
   document.getElementById('sheet-value').innerHTML =

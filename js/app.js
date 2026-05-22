@@ -9,6 +9,16 @@ let habits = [];
 let allLogs = [];
 let currentTab = 'today';
 
+// Theme
+let currentTheme = localStorage.getItem('habitos-theme') || 'light';
+
+// PWA install
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+});
+
 // Onboarding
 let onboardStep = 0;
 let onboardPicked = [];
@@ -27,6 +37,8 @@ let valueSheetVal = 0;
 // ── Bootstrap ─────────────────────────────────────────────────
 
 async function init() {
+  document.documentElement.setAttribute('data-theme', currentTheme);
+
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -460,6 +472,34 @@ function closeProfile() {
 async function handleLogout() {
   closeProfile();
   await supabaseClient.auth.signOut();
+}
+
+function handleThemeToggle() {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('habitos-theme', currentTheme);
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  openProfile();
+}
+
+function isStandalone() {
+  return window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+}
+
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !('MSStream' in window);
+}
+
+async function handleInstallPWA() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  var result = await deferredInstallPrompt.userChoice;
+  if (result.outcome === 'accepted') deferredInstallPrompt = null;
+  openProfile();
+}
+
+function showIOSInstallHint() {
+  showToast('Pulsa el botón Compartir ↑ y luego "Añadir a pantalla de inicio"');
 }
 
 // ── Data refresh ──────────────────────────────────────────────
