@@ -7,7 +7,20 @@
 let currentUser = null;
 let habits = [];
 let allLogs = [];
-let currentTab = 'today';
+let currentTab = 'home';
+
+// Familia
+let myProfile = null;
+let family = null;            // { id, name, role } | null
+let familyMembers = [];       // [{ id, name, color, role }]
+let familyTasks = [];
+let shoppingItems = [];
+let taskFilter = 'all';       // 'all' | member id
+let habitsSubTab = 'today';   // 'today' | 'all'
+let taskDraft = {};
+let itemDraft = {};
+let inviteInfo = null;        // { code, expires_at }
+let pendingInviteCode = null;
 
 // Theme
 let currentTheme = localStorage.getItem('habitos-theme') || 'light';
@@ -39,6 +52,22 @@ let valueSheetVal = 0;
 async function init() {
   document.documentElement.setAttribute('data-theme', currentTheme);
 
+  // Enlace de invitación: /tareas/?invite=FAM-XXXXXX
+  try {
+    var inviteParam = new URLSearchParams(location.search).get('invite');
+    if (inviteParam) {
+      pendingInviteCode = inviteParam.toUpperCase();
+      history.replaceState(null, '', location.pathname);
+    }
+  } catch (e) { /* URLSearchParams no disponible */ }
+
+  // Refrescar datos compartidos al volver a la app
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && currentUser && family) {
+      refreshFamilyData(true);
+    }
+  });
+
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -63,6 +92,12 @@ async function init() {
         currentUser = null;
         habits = [];
         allLogs = [];
+        myProfile = null;
+        family = null;
+        familyMembers = [];
+        familyTasks = [];
+        shoppingItems = [];
+        currentTab = 'home';
         showView('view-auth');
         renderAuth('login');
       }
@@ -75,7 +110,32 @@ async function init() {
 async function loadDashboard() {
   try {
     const rawHabits = await fetchHabits(currentUser.id);
-    if (rawHabits.length === 0) {
+
+    // Perfil + familia (las tablas pueden no existir aún si no se ejecutó family.sql)
+    try {
+      myProfile = await ensureProfile(currentUser);
+      family = await fetchMyFamily(currentUser.id);
+      if (family) {
+        const results = await Promise.all([
+          fetchFamilyMembers(family.id),
+          fetchFamilyTasks(family.id),
+          fetchShoppingItems(family.id),
+        ]);
+        familyMembers = results[0];
+        familyTasks = results[1];
+        shoppingItems = results[2];
+      } else {
+        familyMembers = [];
+        familyTasks = [];
+        shoppingItems = [];
+      }
+    } catch (famErr) {
+      console.warn('family load error (¿family.sql ejecutado?)', famErr);
+      myProfile = null;
+      family = null;
+    }
+
+    if (rawHabits.length === 0 && !family && !localStorage.getItem('habitos-onboarded')) {
       // New user → onboarding
       onboardStep = 0;
       onboardPicked = [];
@@ -89,6 +149,12 @@ async function loadDashboard() {
     showView('view-app');
     renderTabBar(currentTab);
     renderCurrentTab();
+
+    // Invitación pendiente desde el enlace
+    if (pendingInviteCode && !family) {
+      openJoinFamilySheet(pendingInviteCode);
+      pendingInviteCode = null;
+    }
   } catch (e) {
     console.error('loadDashboard error', e);
     showToast('Error cargando datos');
@@ -96,10 +162,14 @@ async function loadDashboard() {
 }
 
 function renderCurrentTab() {
-  if (currentTab === 'today') {
-    renderToday(currentUser, habits, allLogs);
+  if (currentTab === 'home') {
+    renderHome(myProfile, family, familyMembers, familyTasks, shoppingItems, habits);
+  } else if (currentTab === 'tasks') {
+    renderTasks(family, familyMembers, familyTasks, taskFilter);
+  } else if (currentTab === 'shopping') {
+    renderShopping(family, familyMembers, shoppingItems);
   } else {
-    renderHabitsList(currentUser, habits, allLogs);
+    renderHabitsTab(currentUser, habits, allLogs, habitsSubTab);
   }
 }
 
@@ -165,6 +235,7 @@ function skipOnboarding() {
 }
 
 async function finishOnboarding() {
+  localStorage.setItem('habitos-onboarded', '1');
   try {
     for (var i = 0; i < onboardPicked.length; i++) {
       var s = SUGGESTIONS[onboardPicked[i]];
@@ -192,6 +263,13 @@ function switchTab(tab) {
   currentTab = tab;
   renderTabBar(tab);
   renderCurrentTab();
+  // Render inmediato con caché + refetch silencioso de datos compartidos
+  if (family && (tab === 'home' || tab === 'tasks' || tab === 'shopping')) {
+    refreshFamilyData(true);
+  }
+  if (tab === 'habits') {
+    reloadHabits();
+  }
 }
 
 // ── Detail overlay ────────────────────────────────────────────
@@ -461,7 +539,7 @@ function closeValueSheet() {
 // ── Profile sheet ─────────────────────────────────────────────
 
 function openProfile() {
-  renderProfile(currentUser, habits);
+  renderProfile(currentUser, habits, family);
 }
 
 function closeProfile() {
@@ -502,7 +580,310 @@ function showIOSInstallHint() {
   showToast('Pulsa el botón Compartir ↑ y luego "Añadir a pantalla de inicio"');
 }
 
+// ── Quick add (FAB) ───────────────────────────────────────────
+
+function openQuickAdd() {
+  renderQuickAddSheet();
+}
+
+function closeQuickAdd() {
+  var el = document.getElementById('sheet-quick');
+  if (el) el.innerHTML = '';
+}
+
+function quickAddPick(kind) {
+  closeQuickAdd();
+  if (kind === 'habit') {
+    openCreate();
+  } else if (kind === 'task') {
+    openAddTaskSheet();
+  } else if (kind === 'item') {
+    openAddItemSheet();
+  }
+}
+
+function closeAddSheet() {
+  var el = document.getElementById('sheet-add');
+  if (el) el.innerHTML = '';
+}
+
+function requireFamily() {
+  if (family) return true;
+  closeAddSheet();
+  openCreateFamilySheet();
+  return false;
+}
+
+// ── Family tasks ──────────────────────────────────────────────
+
+function openAddTaskSheet() {
+  if (!requireFamily()) return;
+  taskDraft = { title: '', assigneeId: currentUser.id, dueDate: today() };
+  renderAddTaskSheet(taskDraft, familyMembers);
+}
+
+function updateTaskTitle(val) {
+  taskDraft.title = val;
+  var btn = document.getElementById('save-task-btn');
+  if (btn) btn.style.opacity = val.trim() ? '1' : '0.4';
+}
+
+function setTaskAssignee(id) {
+  taskDraft.assigneeId = id;
+  renderAddTaskSheet(taskDraft, familyMembers);
+}
+
+function setTaskDue(offset) {
+  taskDraft.dueDate = offset === 1 ? toDateString(new Date(Date.now() + 86400000)) : today();
+  renderAddTaskSheet(taskDraft, familyMembers);
+}
+
+async function saveTask() {
+  if (!taskDraft.title || !taskDraft.title.trim()) return;
+  try {
+    await createTask({
+      familyId: family.id,
+      title: taskDraft.title.trim(),
+      assigneeId: taskDraft.assigneeId,
+      dueDate: taskDraft.dueDate,
+      icon: pickTaskIcon(taskDraft.title),
+      createdBy: currentUser.id,
+    });
+    closeAddSheet();
+    showToast('Tarea creada');
+    await refreshFamilyData();
+  } catch (e) {
+    console.error('saveTask error', e);
+    showToast('Error al guardar');
+  }
+}
+
+async function handleToggleTask(id) {
+  var task = familyTasks.find(function(t) { return t.id === id; });
+  if (!task) return;
+  task.done = !task.done; // optimista
+  renderCurrentTab();
+  try {
+    await toggleTask(id, task.done);
+  } catch (e) {
+    console.error('handleToggleTask error', e);
+    task.done = !task.done;
+    renderCurrentTab();
+    showToast('Error al registrar');
+  }
+}
+
+async function handleDeleteTask(id) {
+  if (!confirm('¿Eliminar esta tarea?')) return;
+  try {
+    await deleteTask(id);
+    showToast('Tarea eliminada');
+    await refreshFamilyData();
+  } catch (e) {
+    console.error('handleDeleteTask error', e);
+    showToast('Error al eliminar');
+  }
+}
+
+function setTaskFilter(val) {
+  taskFilter = val;
+  renderCurrentTab();
+}
+
+// ── Shopping list ─────────────────────────────────────────────
+
+function openAddItemSheet() {
+  if (!requireFamily()) return;
+  itemDraft = { name: '', qty: '', category: 'otros' };
+  renderAddItemSheet(itemDraft);
+}
+
+function updateItemName(val) {
+  itemDraft.name = val;
+  var btn = document.getElementById('save-item-btn');
+  if (btn) btn.style.opacity = val.trim() ? '1' : '0.4';
+}
+
+function updateItemQty(val) {
+  itemDraft.qty = val;
+}
+
+function setItemCategory(id) {
+  itemDraft.category = id;
+  renderAddItemSheet(itemDraft);
+}
+
+async function saveItem() {
+  if (!itemDraft.name || !itemDraft.name.trim()) return;
+  try {
+    await addShoppingItem({
+      familyId: family.id,
+      name: itemDraft.name.trim(),
+      qty: (itemDraft.qty || '').trim() || null,
+      category: itemDraft.category,
+      addedBy: currentUser.id,
+    });
+    closeAddSheet();
+    showToast('Añadido a la lista');
+    await refreshFamilyData();
+  } catch (e) {
+    console.error('saveItem error', e);
+    showToast('Error al guardar');
+  }
+}
+
+async function handleToggleItem(id) {
+  var item = shoppingItems.find(function(i) { return i.id === id; });
+  if (!item) return;
+  item.checked = !item.checked; // optimista
+  renderCurrentTab();
+  try {
+    await toggleShoppingItem(id, item.checked);
+  } catch (e) {
+    console.error('handleToggleItem error', e);
+    item.checked = !item.checked;
+    renderCurrentTab();
+    showToast('Error al registrar');
+  }
+}
+
+async function handleClearChecked() {
+  var count = shoppingItems.filter(function(i) { return i.checked; }).length;
+  if (count === 0) return;
+  try {
+    await clearCheckedItems(family.id);
+    showToast(count === 1 ? '1 artículo quitado' : count + ' artículos quitados');
+    await refreshFamilyData();
+  } catch (e) {
+    console.error('handleClearChecked error', e);
+    showToast('Error al quitar');
+  }
+}
+
+// ── Family management ─────────────────────────────────────────
+
+function openMembers() {
+  if (!family) { openCreateFamilySheet(); return; }
+  renderMembers(family, familyMembers, familyTasks, currentUser.id);
+  showOverlay('overlay-members');
+}
+
+function closeMembers() {
+  hideOverlay('overlay-members');
+}
+
+function openCreateFamilySheet() {
+  var first = ((myProfile && myProfile.name) || '').split(' ')[0];
+  renderCreateFamilySheet(first ? 'Familia de ' + first : 'Mi familia');
+}
+
+async function handleCreateFamily() {
+  var input = document.getElementById('family-name-input');
+  var name = input ? input.value.trim() : '';
+  if (!name) { showToast('Pon un nombre a la familia'); return; }
+  try {
+    await createFamily(name);
+    closeAddSheet();
+    showToast('Familia creada');
+    await loadDashboard();
+  } catch (e) {
+    console.error('handleCreateFamily error', e);
+    showToast(familyErrorMessage(e));
+  }
+}
+
+function openJoinFamilySheet(prefill) {
+  renderJoinFamilySheet(prefill || '');
+}
+
+async function handleJoinFamily() {
+  var input = document.getElementById('invite-code-input');
+  var code = input ? input.value.trim().toUpperCase() : '';
+  if (!code) { showToast('Introduce el código'); return; }
+  try {
+    await joinFamilyWithCode(code);
+    closeAddSheet();
+    await loadDashboard();
+    showToast(family ? 'Te has unido a ' + family.name : 'Te has unido a la familia');
+  } catch (e) {
+    console.error('handleJoinFamily error', e);
+    showToast(familyErrorMessage(e));
+  }
+}
+
+async function openInviteSheet() {
+  try {
+    inviteInfo = await createFamilyInvite();
+    renderInviteSheet(inviteInfo, inviteLink(inviteInfo.code));
+  } catch (e) {
+    console.error('openInviteSheet error', e);
+    showToast(familyErrorMessage(e));
+  }
+}
+
+function inviteLink(code) {
+  return location.origin + location.pathname + '?invite=' + encodeURIComponent(code);
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('Copiado');
+  } catch (e) {
+    showToast('No se pudo copiar');
+  }
+}
+
+function handleCopyInviteCode() {
+  if (inviteInfo) copyToClipboard(inviteInfo.code);
+}
+
+function handleCopyInviteLink() {
+  if (inviteInfo) copyToClipboard(inviteLink(inviteInfo.code));
+}
+
+async function handleLeaveFamily() {
+  if (!confirm('¿Salir de la familia? Dejarás de ver las tareas y la compra compartidas.')) return;
+  try {
+    await leaveFamily(currentUser.id);
+    closeMembers();
+    showToast('Has salido de la familia');
+    currentTab = 'home';
+    await loadDashboard();
+  } catch (e) {
+    console.error('handleLeaveFamily error', e);
+    showToast('Error al salir');
+  }
+}
+
+// ── Habits sub-tab ────────────────────────────────────────────
+
+function setHabitsSubTab(val) {
+  habitsSubTab = val;
+  renderCurrentTab();
+}
+
 // ── Data refresh ──────────────────────────────────────────────
+
+async function refreshFamilyData(silent) {
+  if (!family) return;
+  try {
+    const results = await Promise.all([
+      fetchFamilyMembers(family.id),
+      fetchFamilyTasks(family.id),
+      fetchShoppingItems(family.id),
+    ]);
+    familyMembers = results[0];
+    familyTasks = results[1];
+    shoppingItems = results[2];
+    if (currentTab === 'home' || currentTab === 'tasks' || currentTab === 'shopping') {
+      renderCurrentTab();
+    }
+  } catch (e) {
+    console.error('refreshFamilyData error', e);
+    if (!silent) showToast('Error cargando datos');
+  }
+}
 
 async function reloadHabits() {
   try {

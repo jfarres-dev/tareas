@@ -48,9 +48,21 @@ const ICON_PATHS = {
   apple:       `<path d="M17 8a6 6 0 0 0-10 0c-1 2-1 7 0 9a5 5 0 0 0 10 0c1-2 1-7 0-9z"/><path d="M12 8V5M14.5 4a3 3 0 0 0-2.5 1"/>`,
   stretch:     `<circle cx="12" cy="4" r="2"/><path d="M12 6v5M9 14l3-3 3 3M7 21l2-6M17 21l-2-6"/>`,
   bowl:        `<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M3 11h18M12 19v2M9 21h6"/>`,
+  cart:        `<path d="M4 5h2l1.6 9.5h9.2L19 8H7"/><circle cx="9.5" cy="19" r="1.4" fill="$c" stroke="none"/><circle cx="16.5" cy="19" r="1.4" fill="$c" stroke="none"/>`,
+  users:       `<circle cx="9" cy="8" r="3"/><path d="M3.5 20c0-3 2.6-5 5.5-5s5.5 2 5.5 5"/><circle cx="17.5" cy="7" r="2.3"/><path d="M16 13c2.6 0 4.5 1.8 4.5 4.5"/>`,
+  copy:        `<path d="M9 9h10v10H9z"/><path d="M5 15V5h10"/>`,
+  link:        `<path d="M9.5 14.5 14.5 9.5"/><path d="M11 6.5l1-1a4 4 0 0 1 6 6l-1 1"/><path d="M13 17.5l-1 1a4 4 0 0 1-6-6l1-1"/>`,
+  qr:          `<path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h2v2"/><path d="M19 14h1v6h-6v-2"/><path d="M16 18h1"/>`,
+  bread:       `<path d="M5 10a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4c0 1.1-.7 2-1.5 2.3V18h-11v-5.7C5.7 12 5 11.1 5 10z"/><path d="M10 9.5V12M13.5 9.5V12"/>`,
+  milk:        `<path d="M9 3h6v3l2 4v10a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V10l2-4V3z"/><path d="M7 10h10"/>`,
+  spray:       `<path d="M9 21h7v-9l-1.5-3h-4L9 12v9z"/><path d="M11 9V6h4M18 3.5h2M18 6h2M18 8.5h2"/>`,
+  box:         `<path d="M4 8l8-4 8 4-8 4-8-4z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/>`,
+  utensils:    `<path d="M7 3v8"/><path d="M5 3v4a2 2 0 0 0 4 0V3"/><path d="M7 11v10"/><path d="M16 3c-1.5 0-2.6 2-2.6 5s1.1 4 2.6 4v9"/>`,
+  paw:         `<circle cx="7.5" cy="9" r="1.5" fill="$c" stroke="none"/><circle cx="12" cy="7.3" r="1.6" fill="$c" stroke="none"/><circle cx="16.5" cy="9" r="1.5" fill="$c" stroke="none"/><path d="M8 15.5c0-2 1.8-3 4-3s4 1 4 3-1.8 3.5-4 3.5-4-1.5-4-3.5z" fill="$c" stroke="none"/>`,
+  shirt:       `<path d="M9 4 4 7l2 3 2-1v11h8V9l2 1 2-3-5-3-2 2-2-1z"/>`,
 };
 
-const ICON_OPTIONS = ['leaf','droplet','book','walk','yoga','pen','sun','moon','coffee','music','dumbbell','flame','target','sparkle','phone','heart','bike','bed','headphones','star','eye','camera','pill','tree','wind','chart','palette','apple','stretch','bowl'];
+const ICON_OPTIONS = ['leaf','droplet','book','walk','yoga','pen','sun','moon','coffee','music','dumbbell','flame','target','sparkle','phone','heart','bike','bed','headphones','star','eye','camera','pill','tree','wind','chart','palette','apple','stretch','bowl','cart','utensils','paw','box','shirt'];
 
 function icon(name, size, color, strokeWidth) {
   size = size || 22;

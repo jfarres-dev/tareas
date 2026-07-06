@@ -162,39 +162,60 @@ function renderOnboarding(step, picked) {
 // ── Tab bar ───────────────────────────────────────────────────
 
 function renderTabBar(currentTab) {
+  function tabBtn(key, label, iconName) {
+    return '<button class="tab-item' + (currentTab === key ? ' active' : '') + '" onclick="switchTab(\'' + key + '\')">'
+      + icon(iconName, 22, 'currentColor', 1.7)
+      + '<span>' + label + '</span>'
+      + '</button>';
+  }
   document.getElementById('tab-bar').innerHTML =
     '<div class="tab-bar-inner">'
-    + '<button class="tab-item' + (currentTab === 'today' ? ' active' : '') + '" onclick="switchTab(\'today\')">'
-    + icon('sun', 22, 'currentColor', 1.7)
-    + '<span>Hoy</span>'
-    + '</button>'
+    + tabBtn('home', 'Inicio', 'home')
+    + tabBtn('tasks', 'Tareas', 'list')
     + '<div class="tab-fab-space">'
-    + '<button class="tab-fab" onclick="openCreate()" aria-label="Nuevo hábito">'
+    + '<button class="tab-fab" onclick="openQuickAdd()" aria-label="Añadir">'
     + icon('plus', 24, 'var(--paper)', 2)
     + '</button>'
     + '</div>'
-    + '<button class="tab-item' + (currentTab === 'habits' ? ' active' : '') + '" onclick="switchTab(\'habits\')">'
-    + icon('list', 22, 'currentColor', 1.7)
-    + '<span>Hábitos</span>'
-    + '</button>'
+    + tabBtn('shopping', 'Compra', 'cart')
+    + tabBtn('habits', 'Hábitos', 'leaf')
     + '</div>';
 }
 
-// ── Today screen ──────────────────────────────────────────────
+// ── Habits tab (Hoy | Todos) ──────────────────────────────────
 
-function renderToday(user, habits, allLogs) {
-  var todayStr = today();
-  var scheduled = habits.filter(function(h) { return isScheduledOn(h, new Date()); });
-  var done = scheduled.filter(function(h) { return isComplete(h, h.log[todayStr]); }).length;
-
+function renderHabitsTab(user, habits, allLogs, subTab) {
+  subTab = subTab || 'today';
   var header =
     '<div class="page-header">'
     + '<div class="page-header-left">'
     + '<p class="page-date">' + _fmtToday() + '</p>'
-    + '<h2 class="page-title">Buenos días' + (user && user.user_metadata && user.user_metadata.name ? ', ' + _esc(user.user_metadata.name.split(' ')[0]) : '') + '</h2>'
+    + '<h2 class="page-title">Hábitos</h2>'
     + '</div>'
     + '<button class="avatar-btn" onclick="openProfile()">' + buildAvatar(user, 36) + '</button>'
     + '</div>';
+
+  var seg = buildSegmented([
+    { value: 'today', label: 'Hoy' },
+    { value: 'all', label: 'Todos' },
+  ], subTab, 'setHabitsSubTab');
+
+  var body = subTab === 'today'
+    ? buildTodayBody(habits)
+    : buildHabitsListBody(habits);
+
+  document.getElementById('app-content').innerHTML =
+    '<div class="screen screen-habits">'
+    + header
+    + '<div class="habits-subtabs">' + seg + '</div>'
+    + body
+    + '</div>';
+}
+
+function buildTodayBody(habits) {
+  var todayStr = today();
+  var scheduled = habits.filter(function(h) { return isScheduledOn(h, new Date()); });
+  var done = scheduled.filter(function(h) { return isComplete(h, h.log[todayStr]); }).length;
 
   var dial = scheduled.length > 0
     ? '<div class="today-dial">' + buildProgressDial(done, scheduled.length) + '<p class="today-dial-label">' + done + ' de ' + scheduled.length + ' completados</p></div>'
@@ -204,12 +225,7 @@ function renderToday(user, habits, allLogs) {
     ? '<div class="empty-state"><p>No hay hábitos para hoy.<br>Pulsa + para añadir uno.</p></div>'
     : scheduled.map(function(h) { return buildTodayRow(h, h.log[todayStr]); }).join('');
 
-  document.getElementById('app-content').innerHTML =
-    '<div class="screen screen-today">'
-    + header
-    + dial
-    + '<div class="today-list">' + rows + '</div>'
-    + '</div>';
+  return dial + '<div class="today-list">' + rows + '</div>';
 }
 
 function buildTodayRow(habit, value) {
@@ -257,24 +273,13 @@ function _fmtToday() {
   return dow + ', ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
 }
 
-// ── Habits list screen ────────────────────────────────────────
+// ── Habits list body ──────────────────────────────────────────
 
-function renderHabitsList(user, habits, allLogs) {
-  var header =
-    '<div class="page-header">'
-    + '<h2 class="page-title">Mis hábitos</h2>'
-    + '<button class="avatar-btn" onclick="openProfile()">' + buildAvatar(user, 36) + '</button>'
-    + '</div>';
-
+function buildHabitsListBody(habits) {
   var rows = habits.length === 0
     ? '<div class="empty-state"><p>Aún no tienes hábitos.<br>Pulsa + para crear el primero.</p></div>'
     : habits.map(function(h) { return buildHabitListRow(h); }).join('');
-
-  document.getElementById('app-content').innerHTML =
-    '<div class="screen screen-habits">'
-    + header
-    + '<div class="habits-list">' + rows + '</div>'
-    + '</div>';
+  return '<div class="habits-list">' + rows + '</div>';
 }
 
 function buildHabitListRow(habit) {
@@ -315,6 +320,511 @@ function build7DayStrip(habit) {
       + '</div>';
   }
   return cells;
+}
+
+// ── Family shared helpers ─────────────────────────────────────
+
+function memberById(members, id) {
+  return members.find(function(m) { return m.id === id; }) || null;
+}
+
+function buildMemberAvatar(member, size) {
+  size = size || 36;
+  var c = colorById(memberColor(member));
+  var letter = ((member && member.name) || '?').trim().charAt(0).toUpperCase();
+  return '<div class="avatar" style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + c.bg + ';color:' + c.ink + ';display:flex;align-items:center;justify-content:center;font-family:var(--sans);font-weight:600;font-size:' + Math.round(size * 0.42) + 'px;flex-shrink:0">' + letter + '</div>';
+}
+
+function _greetWord() {
+  var h = new Date().getHours();
+  if (h < 6) return 'Buenas noches';
+  if (h < 13) return 'Buenos días';
+  if (h < 21) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function _tomorrow() {
+  return toDateString(new Date(Date.now() + 86400000));
+}
+
+function taskDueLabel(task) {
+  var t = today();
+  if (task.due_date < t) return 'Atrasada';
+  if (task.due_date === t) return 'Hoy';
+  if (task.due_date === _tomorrow()) return 'Mañana';
+  var d = new Date(task.due_date + 'T00:00:00');
+  return d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3);
+}
+
+function tasksDueToday(tasks) {
+  var t = today();
+  return tasks.filter(function(task) { return task.due_date <= t; });
+}
+
+// ── Home screen ───────────────────────────────────────────────
+
+function renderHome(profile, family, members, tasks, items, habits) {
+  var firstName = ((profile && profile.name) || '').split(' ')[0];
+  var me = profile ? { id: profile.id, name: profile.name, color: profile.color } : { id: '', name: 'U' };
+
+  var header =
+    '<div class="page-header">'
+    + '<div class="page-header-left">'
+    + '<p class="page-date">' + _fmtToday() + '</p>'
+    + '<h2 class="page-title">' + _greetWord() + (firstName ? ', <em>' + _esc(firstName) + '</em>' : '') + '</h2>'
+    + (family ? '<p class="home-family-name">Familia ' + _esc(family.name.replace(/^Familia\s+/i, '')) + '</p>' : '')
+    + '</div>'
+    + '<button class="avatar-btn" onclick="openProfile()">' + buildMemberAvatar(me, 40) + '</button>'
+    + '</div>';
+
+  if (!family) {
+    document.getElementById('app-content').innerHTML =
+      '<div class="screen screen-home">'
+      + header
+      + buildNoFamilyCard()
+      + '</div>';
+    return;
+  }
+
+  // Tareas de hoy
+  var todayTasks = tasksDueToday(tasks);
+  var doneCount = todayTasks.filter(function(t) { return t.done; }).length;
+  var pendingCount = todayTasks.length - doneCount;
+  var headline = todayTasks.length === 0
+    ? 'Sin tareas hoy'
+    : (pendingCount === 0 ? '¡Todo hecho!' : pendingCount + (pendingCount === 1 ? ' tarea por hacer' : ' tareas por hacer'));
+  var subline = todayTasks.length === 0
+    ? 'Disfrutad el día en familia.'
+    : (pendingCount === 0 ? 'La familia ha completado el día.' : doneCount + ' de ' + todayTasks.length + ' completadas hoy');
+
+  var dialCard =
+    '<div class="home-card home-dial-card">'
+    + buildProgressDial(doneCount, todayTasks.length)
+    + '<div class="home-dial-text">'
+    + '<p class="home-headline">' + headline + '</p>'
+    + '<p class="home-subline">' + subline + '</p>'
+    + '</div>'
+    + '</div>';
+
+  var previewRows = todayTasks.slice(0, 4).map(function(t) { return buildTaskRow(t, members, true); }).join('');
+  var tasksSection = todayTasks.length > 0
+    ? '<div class="home-section-header">'
+      + '<h3 class="section-title" style="padding:0">Tareas de hoy</h3>'
+      + '<button class="text-btn" onclick="switchTab(\'tasks\')">Ver todas →</button>'
+      + '</div>'
+      + '<div class="task-list">' + previewRows + '</div>'
+    : '';
+
+  // Atajo a la compra
+  var shopPending = items.filter(function(i) { return !i.checked; }).length;
+  var shopSummary = shopPending === 0
+    ? 'Lista al día'
+    : shopPending + (shopPending === 1 ? ' artículo pendiente' : ' artículos pendientes');
+  var shopCard =
+    '<button class="home-shortcut" onclick="switchTab(\'shopping\')">'
+    + '<span class="home-shortcut-icon">' + icon('cart', 22, '#7a4a2c', 1.7) + '</span>'
+    + '<span class="home-shortcut-text">'
+    + '<span class="home-shortcut-title">Lista de la compra</span>'
+    + '<span class="home-shortcut-sub">' + shopSummary + '</span>'
+    + '</span>'
+    + icon('chevronRight', 20, 'var(--ink-mute)', 1.7)
+    + '</button>';
+
+  // La familia
+  var memberRows = members.map(function(m) {
+    var pend = tasks.filter(function(t) { return t.assignee_id === m.id && !t.done && t.due_date <= today(); }).length;
+    var pendLabel = pend === 0 ? 'al día' : pend + (pend === 1 ? ' tarea' : ' tareas');
+    return '<div class="member-row">'
+      + buildMemberAvatar(m, 42)
+      + '<div class="member-row-text">'
+      + '<span class="member-row-name">' + _esc(m.name) + '</span>'
+      + '<span class="member-row-sub">Adulto</span>'
+      + '</div>'
+      + '<span class="member-row-pending">' + pendLabel + '</span>'
+      + '</div>';
+  }).join('');
+
+  var familySection =
+    '<h3 class="section-title">La familia</h3>'
+    + '<div class="member-list">'
+    + memberRows
+    + '<button class="member-row member-manage" onclick="openMembers()">'
+    + '<span class="member-manage-icon">' + icon('plus', 20, 'var(--ink-soft)', 1.7) + '</span>'
+    + '<span class="member-row-name" style="color:var(--ink-soft);font-weight:500">Gestionar familia · vincular</span>'
+    + '</button>'
+    + '</div>';
+
+  document.getElementById('app-content').innerHTML =
+    '<div class="screen screen-home">'
+    + header
+    + dialCard
+    + tasksSection
+    + '<div class="home-shortcuts">' + shopCard + '</div>'
+    + familySection
+    + '</div>';
+}
+
+function buildNoFamilyCard() {
+  return '<div class="home-card no-family-card">'
+    + '<div class="no-family-icon">' + icon('users', 30, 'var(--accent)', 1.5) + '</div>'
+    + '<h3 class="no-family-title">Crea tu núcleo familiar</h3>'
+    + '<p class="no-family-body">Comparte la lista de la compra y las tareas con tu familia. Cada uno con su cuenta; los hábitos siguen siendo privados.</p>'
+    + '<button class="btn-primary" onclick="openCreateFamilySheet()">Crear familia</button>'
+    + '<button class="btn-secondary" onclick="openJoinFamilySheet()">Tengo un código</button>'
+    + '</div>';
+}
+
+// ── Tasks screen ──────────────────────────────────────────────
+
+function renderTasks(family, members, tasks, filter) {
+  if (!family) {
+    document.getElementById('app-content').innerHTML =
+      '<div class="screen screen-tasks">'
+      + '<div class="page-header"><h2 class="page-title">Tareas</h2></div>'
+      + buildNoFamilyCard()
+      + '</div>';
+    return;
+  }
+
+  var pending = tasks.filter(function(t) { return !t.done; }).length;
+  var doneCount = tasks.length - pending;
+
+  var header =
+    '<div class="page-header">'
+    + '<div class="page-header-left">'
+    + '<h2 class="page-title">Tareas</h2>'
+    + '<p class="page-date">' + pending + ' pendientes · ' + doneCount + ' hechas</p>'
+    + '</div>'
+    + '</div>';
+
+  var chips = '<div class="chip-row">'
+    + '<button class="chip' + (filter === 'all' ? ' active' : '') + '" onclick="setTaskFilter(\'all\')">Todas</button>'
+    + members.map(function(m) {
+        return '<button class="chip' + (filter === m.id ? ' active' : '') + '" onclick="setTaskFilter(\'' + m.id + '\')">' + _esc(m.name.split(' ')[0]) + '</button>';
+      }).join('')
+    + '</div>';
+
+  var visible = filter === 'all' ? tasks.slice() : tasks.filter(function(t) { return t.assignee_id === filter; });
+  visible.sort(function(a, b) {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
+    return 0;
+  });
+
+  var rows = visible.length === 0
+    ? '<div class="empty-state"><p>Sin tareas aquí.<br>Pulsa + para crear una.</p></div>'
+    : visible.map(function(t) { return buildTaskRow(t, members, false); }).join('');
+
+  document.getElementById('app-content').innerHTML =
+    '<div class="screen screen-tasks">'
+    + header
+    + chips
+    + '<div class="task-list">' + rows + '</div>'
+    + '</div>';
+}
+
+function buildTaskRow(task, members, compact) {
+  var assignee = memberById(members, task.assignee_id);
+  var c = assignee ? colorById(memberColor(assignee)) : colorById('sage');
+  var name = assignee ? assignee.name.split(' ')[0] : '—';
+  var iconSize = compact ? 38 : 42;
+
+  var iconCircle = '<div class="task-icon" style="width:' + iconSize + 'px;height:' + iconSize + 'px;background:' + c.bg + '">'
+    + icon(task.icon || 'check', Math.round(iconSize * 0.5), c.ink, 1.7)
+    + '</div>';
+
+  var meta = '<div class="task-row-meta">'
+    + '<span class="task-assignee-chip" style="background:' + c.bg + ';color:' + c.ink + '">' + name.charAt(0).toUpperCase() + '</span>'
+    + '<span>' + _esc(name) + '</span>'
+    + (compact ? '' : '<span class="task-meta-dot">·</span><span class="due-label">' + taskDueLabel(task) + '</span>')
+    + '</div>';
+
+  var check = '<button class="t-check' + (task.done ? ' done' : '') + '" onclick="handleToggleTask(\'' + task.id + '\')" style="' + (task.done ? 'background:' + c.dot + ';border-color:' + c.dot : '') + '" aria-label="Completar">'
+    + (task.done ? '<span class="t-check-mark">' + icon('check', 20, '#fff', 2.4) + '</span>' : '')
+    + '</button>';
+
+  var delBtn = (!compact && task.done)
+    ? '<button class="t-del" onclick="handleDeleteTask(\'' + task.id + '\')" aria-label="Eliminar">' + icon('trash', 16, 'var(--ink-mute)', 1.6) + '</button>'
+    : '';
+
+  return '<div class="task-row' + (task.done ? ' done' : '') + '" style="' + (task.done ? '--row-bg:' + c.bg : '') + '">'
+    + iconCircle
+    + '<div class="task-row-text">'
+    + '<span class="task-row-name" style="' + (task.done ? 'color:' + c.ink : '') + '">' + _esc(task.title) + '</span>'
+    + meta
+    + '</div>'
+    + delBtn
+    + check
+    + '</div>';
+}
+
+// ── Shopping screen ───────────────────────────────────────────
+
+function renderShopping(family, members, items) {
+  if (!family) {
+    document.getElementById('app-content').innerHTML =
+      '<div class="screen screen-shopping">'
+      + '<div class="page-header"><h2 class="page-title">La compra</h2></div>'
+      + buildNoFamilyCard()
+      + '</div>';
+    return;
+  }
+
+  var pending = items.filter(function(i) { return !i.checked; }).length;
+  var checked = items.length - pending;
+  var summary = items.length === 0
+    ? 'Lista vacía'
+    : (pending === 0 ? 'Todo comprado' : pending + ' pendientes · ' + checked + ' en el carro');
+
+  var header =
+    '<div class="page-header">'
+    + '<div class="page-header-left">'
+    + '<h2 class="page-title">La compra</h2>'
+    + '<p class="page-date">' + summary + '</p>'
+    + '</div>'
+    + '<span class="badge-shared">Compartida</span>'
+    + '</div>';
+
+  var groups = SHOP_CATEGORIES.map(function(cat) {
+    var catItems = items.filter(function(i) { return i.category === cat.id; });
+    if (catItems.length === 0) return '';
+    catItems.sort(function(a, b) { return (a.checked ? 1 : 0) - (b.checked ? 1 : 0); });
+    var rows = catItems.map(function(item, idx) {
+      var by = memberById(members, item.added_by);
+      var byAvatar = by ? buildMemberAvatar(by, 22) : '';
+      return '<button class="shop-row' + (item.checked ? ' checked' : '') + '" onclick="handleToggleItem(\'' + item.id + '\')">'
+        + '<span class="shop-check' + (item.checked ? ' on' : '') + '">'
+        + (item.checked ? icon('check', 14, '#fff', 2.6) : '')
+        + '</span>'
+        + '<span class="shop-row-text">'
+        + '<span class="shop-row-name">' + _esc(item.name) + '</span>'
+        + (item.qty ? '<span class="shop-qty">' + _esc(item.qty) + '</span>' : '')
+        + '</span>'
+        + byAvatar
+        + '</button>';
+    }).join('');
+    return '<div class="shop-group">'
+      + '<div class="shop-cat-label">' + cat.label + '</div>'
+      + '<div class="shop-card">' + rows + '</div>'
+      + '</div>';
+  }).join('');
+
+  var empty = items.length === 0
+    ? '<div class="empty-state"><p>La lista está vacía.<br>Pulsa + para añadir el primer artículo.</p></div>'
+    : '';
+
+  var clearBtn = checked > 0
+    ? '<button class="btn-clear-checked" onclick="handleClearChecked()">'
+      + icon('trash', 16, 'currentColor', 1.6)
+      + 'Quitar ' + checked + (checked === 1 ? ' comprado' : ' comprados')
+      + '</button>'
+    : '';
+
+  document.getElementById('app-content').innerHTML =
+    '<div class="screen screen-shopping">'
+    + header
+    + groups
+    + empty
+    + clearBtn
+    + '</div>';
+}
+
+// ── Quick add sheet ───────────────────────────────────────────
+
+function renderQuickAddSheet() {
+  function opt(kind, iconName, iconBg, iconInk, title, sub) {
+    return '<button class="qa-option" onclick="quickAddPick(\'' + kind + '\')">'
+      + '<span class="qa-icon" style="background:' + iconBg + ';color:' + iconInk + '">' + icon(iconName, 22, iconInk, 1.7) + '</span>'
+      + '<span class="qa-text"><span class="qa-title">' + title + '</span><span class="qa-sub">' + sub + '</span></span>'
+      + '</button>';
+  }
+  document.getElementById('sheet-quick').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeQuickAdd()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Añadir</h3>'
+    + '<div class="qa-options">'
+    + opt('task', 'list', '#dde5eb', '#3c5468', 'Tarea', 'Asignar a un miembro')
+    + opt('item', 'cart', '#ecdfd2', '#7a4a2c', 'Artículo de la compra', 'A la lista compartida')
+    + opt('habit', 'leaf', '#e6ebe1', '#445a3c', 'Hábito', 'Privado, solo para ti')
+    + '</div>'
+    + '</div>';
+}
+
+// ── Add task sheet ────────────────────────────────────────────
+
+function renderAddTaskSheet(draft, members) {
+  var avatars = members.map(function(m) {
+    var sel = draft.assigneeId === m.id;
+    return '<button class="avatar-pick' + (sel ? ' active' : '') + '" onclick="setTaskAssignee(\'' + m.id + '\')">'
+      + buildMemberAvatar(m, 48)
+      + '<span class="avatar-pick-name">' + _esc(m.name.split(' ')[0]) + '</span>'
+      + '</button>';
+  }).join('');
+
+  var isToday = draft.dueDate === today();
+  var whenBtns =
+    '<button class="when-btn' + (isToday ? ' active' : '') + '" onclick="setTaskDue(0)">Hoy</button>'
+    + '<button class="when-btn' + (!isToday ? ' active' : '') + '" onclick="setTaskDue(1)">Mañana</button>';
+
+  document.getElementById('sheet-add').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Nueva tarea</h3>'
+    + '<input class="input" id="task-title-input" type="text" placeholder="¿Qué hay que hacer?" maxlength="80" value="' + _esc(draft.title || '') + '" oninput="updateTaskTitle(this.value)" />'
+    + '<label class="form-label sheet-label">Asignar a</label>'
+    + '<div class="avatar-pick-row">' + avatars + '</div>'
+    + '<label class="form-label sheet-label">Cuándo</label>'
+    + '<div class="when-row">' + whenBtns + '</div>'
+    + '<button class="btn-primary" id="save-task-btn" onclick="saveTask()" style="opacity:' + ((draft.title || '').trim() ? '1' : '0.4') + ';margin-top:20px">Crear tarea</button>'
+    + '</div>';
+
+  var input = document.getElementById('task-title-input');
+  if (input && !draft.title) input.focus();
+}
+
+// ── Add item sheet ────────────────────────────────────────────
+
+function renderAddItemSheet(draft) {
+  var chips = SHOP_CATEGORIES.map(function(c) {
+    var sel = draft.category === c.id;
+    return '<button class="chip' + (sel ? ' active' : '') + '" onclick="setItemCategory(\'' + c.id + '\')">' + c.label + '</button>';
+  }).join('');
+
+  document.getElementById('sheet-add').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Añadir a la compra</h3>'
+    + '<input class="input" id="item-name-input" type="text" placeholder="p. ej. Leche" maxlength="60" value="' + _esc(draft.name || '') + '" oninput="updateItemName(this.value)" />'
+    + '<input class="input" id="item-qty-input" type="text" placeholder="Cantidad (opcional) · p. ej. 2 L" maxlength="20" value="' + _esc(draft.qty || '') + '" oninput="updateItemQty(this.value)" style="margin-top:10px" />'
+    + '<label class="form-label sheet-label">Categoría</label>'
+    + '<div class="chip-row chip-row-wrap">' + chips + '</div>'
+    + '<button class="btn-primary" id="save-item-btn" onclick="saveItem()" style="opacity:' + ((draft.name || '').trim() ? '1' : '0.4') + ';margin-top:20px">Añadir a la lista</button>'
+    + '</div>';
+
+  var input = document.getElementById('item-name-input');
+  if (input && !draft.name) input.focus();
+}
+
+// ── Family sheets ─────────────────────────────────────────────
+
+function renderCreateFamilySheet(defaultName) {
+  document.getElementById('sheet-add').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Crear familia</h3>'
+    + '<p class="sheet-desc">Ponle nombre a vuestro núcleo familiar. Después podrás invitar a los demás.</p>'
+    + '<input class="input" id="family-name-input" type="text" placeholder="Nombre de la familia" maxlength="40" value="' + _esc(defaultName || '') + '" />'
+    + '<button class="btn-primary" onclick="handleCreateFamily()" style="margin-top:20px">Crear familia</button>'
+    + '<button class="btn-ghost" onclick="openJoinFamilySheet()" style="margin-top:8px">Tengo un código de invitación</button>'
+    + '</div>';
+}
+
+function renderJoinFamilySheet(prefillCode) {
+  document.getElementById('sheet-add').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Unirme a una familia</h3>'
+    + '<p class="sheet-desc">Introduce el código de invitación que te han compartido.</p>'
+    + '<input class="input invite-input" id="invite-code-input" type="text" placeholder="FAM-XXXXXX" maxlength="12" autocapitalize="characters" value="' + _esc(prefillCode || '') + '" />'
+    + '<button class="btn-primary" onclick="handleJoinFamily()" style="margin-top:20px">Unirme</button>'
+    + '<button class="btn-ghost" onclick="openCreateFamilySheet()" style="margin-top:8px">Crear una familia nueva</button>'
+    + '</div>';
+
+  var input = document.getElementById('invite-code-input');
+  if (input && !prefillCode) input.focus();
+}
+
+function renderInviteSheet(inviteInfo, link) {
+  var qrBlock = '';
+  if (typeof qrcodegen !== 'undefined') {
+    qrBlock = '<div class="qr-wrap">' + buildQrSvg(link, 168) + '</div>';
+  }
+  document.getElementById('sheet-add').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Invita a tu familia</h3>'
+    + '<p class="sheet-desc">Que escaneen el código QR o introduce el código al registrarse.</p>'
+    + qrBlock
+    + '<div class="invite-code-box">'
+    + '<div class="invite-code-text">'
+    + '<span class="invite-code-label">Código</span>'
+    + '<span class="invite-code">' + _esc(inviteInfo.code) + '</span>'
+    + '</div>'
+    + '<button class="btn-copy" onclick="handleCopyInviteCode()">' + icon('copy', 15, 'currentColor', 1.7) + 'Copiar</button>'
+    + '</div>'
+    + '<button class="btn-secondary" onclick="handleCopyInviteLink()" style="margin-top:10px">' + icon('link', 16, 'currentColor', 1.7) + ' Copiar enlace</button>'
+    + '<p class="invite-footnote">El código caduca en 72 horas.</p>'
+    + '</div>';
+}
+
+// ── Members overlay ───────────────────────────────────────────
+
+function renderMembers(family, members, tasks, currentUserId) {
+  var t = today();
+  var cards = members.map(function(m) {
+    var pend = tasks.filter(function(x) { return x.assignee_id === m.id && !x.done; }).length;
+    var doneToday = tasks.filter(function(x) { return x.assignee_id === m.id && x.done && x.due_date <= t; }).length;
+    var stat = pend + (pend === 1 ? ' tarea pendiente' : ' tareas pendientes') + ' · ' + doneToday + ' hechas hoy';
+    return '<div class="member-card">'
+      + buildMemberAvatar(m, 48)
+      + '<div class="member-card-text">'
+      + '<div class="member-card-top">'
+      + '<span class="member-row-name">' + _esc(m.name) + (m.id === currentUserId ? ' <span class="member-you">(tú)</span>' : '') + '</span>'
+      + '<span class="role-badge">Adulto</span>'
+      + '</div>'
+      + '<span class="member-row-sub">' + stat + '</span>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+
+  var adults = members.length;
+  document.getElementById('overlay-members').innerHTML =
+    '<div class="overlay-page">'
+    + '<div class="overlay-header">'
+    + '<button class="icon-btn" onclick="closeMembers()">' + icon('chevronLeft', 22, 'var(--ink)', 1.7) + '</button>'
+    + '<h2 class="overlay-title">La familia</h2>'
+    + '<span style="width:38px"></span>'
+    + '</div>'
+    + '<div class="overlay-body">'
+    + '<h2 class="members-family-name">Familia ' + _esc(family.name.replace(/^Familia\s+/i, '')) + '</h2>'
+    + '<p class="members-count">' + adults + (adults === 1 ? ' miembro' : ' miembros') + '</p>'
+    + '<div class="member-cards">' + cards + '</div>'
+    + '<div class="invite-card">'
+    + '<h3 class="invite-card-title">Vincular a alguien</h3>'
+    + '<p class="invite-card-body">Comparte la lista de la compra y las tareas con otra persona de tu núcleo familiar.</p>'
+    + '<button class="btn-primary" onclick="openInviteSheet()">' + icon('qr', 18, 'var(--paper)', 1.7) + ' Código de invitación</button>'
+    + '</div>'
+    + '<button class="btn-danger" onclick="handleLeaveFamily()" style="margin-top:20px">Salir de la familia</button>'
+    + '</div>'
+    + '</div>';
+}
+
+// ── QR ────────────────────────────────────────────────────────
+
+function buildQrSvg(text, sizePx) {
+  sizePx = sizePx || 160;
+  try {
+    var qr = qrcodegen.QrCode.encodeText(text, qrcodegen.QrCode.Ecc.MEDIUM);
+    var n = qr.size;
+    var parts = [];
+    for (var y = 0; y < n; y++) {
+      for (var x = 0; x < n; x++) {
+        if (qr.getModule(x, y)) parts.push('M' + x + ' ' + y + 'h1v1h-1z');
+      }
+    }
+    return '<svg width="' + sizePx + '" height="' + sizePx + '" viewBox="0 0 ' + n + ' ' + n + '" style="display:block">'
+      + '<path d="' + parts.join('') + '" fill="var(--ink)"/>'
+      + '</svg>';
+  } catch (e) {
+    console.warn('buildQrSvg error', e);
+    return '';
+  }
 }
 
 // ── Detail screen ─────────────────────────────────────────────
@@ -600,7 +1110,7 @@ function buildIconPicker(selected) {
 
 // ── Profile sheet ─────────────────────────────────────────────
 
-function renderProfile(user, habits) {
+function renderProfile(user, habits, family) {
   var totalHabits = habits.length;
   var todayStr = today();
   var doneTodayCount = habits.filter(function(h) {
@@ -617,6 +1127,7 @@ function renderProfile(user, habits) {
     + '<div class="sheet-user-info">'
     + '<p class="sheet-name">' + _esc(name) + '</p>'
     + '<p class="sheet-email">' + _esc(user.email || '') + '</p>'
+    + (family ? '<p class="sheet-email">Familia ' + _esc(family.name.replace(/^Familia\s+/i, '')) + '</p>' : '')
     + '</div>'
     + '</div>'
     + '<div class="sheet-stats">'
@@ -624,6 +1135,7 @@ function renderProfile(user, habits) {
     + '<div class="sheet-stat"><span class="sheet-stat-val">' + doneTodayCount + '</span><span class="sheet-stat-label">Hoy</span></div>'
     + '</div>'
     + '<div class="sheet-actions">'
+    + '<button class="sheet-btn" onclick="closeProfile();openMembers()">' + icon('users', 18, 'var(--ink)', 1.7) + '<span>' + (family ? 'Gestionar familia' : 'Crear o unirme a una familia') + '</span></button>'
     + '<button class="sheet-btn" onclick="closeProfile();openCreate()">' + icon('plus', 18, 'var(--ink)', 1.7) + '<span>Nuevo hábito</span></button>'
     + '<button class="sheet-btn" onclick="handleThemeToggle()">' + icon(currentTheme === 'dark' ? 'sun' : 'moon', 18, 'var(--ink)', 1.7) + '<span>' + (currentTheme === 'dark' ? 'Modo claro' : 'Modo oscuro') + '</span></button>'
     + ((!isStandalone() && deferredInstallPrompt) ? '<button class="sheet-btn" onclick="handleInstallPWA()">' + icon('phone', 18, 'var(--ink)', 1.7) + '<span>Instalar app</span></button>' : '')

@@ -1260,3 +1260,146 @@ input[type=number].input::-webkit-inner-spin-button { -webkit-appearance:none; }
 .hm-grid { display:flex; gap:3px; flex:1; min-width:0; }
 .hm-col { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
 .hm-cell { flex:1; aspect-ratio:1; border-radius:3px; }
+
+/* ═══════════════ Familia: home, tareas, compra, sheets ═══════════════ */
+
+/* Home */
+.screen-home, .screen-tasks, .screen-shopping { flex:1; padding-bottom:24px; }
+.page-title em { font-style:italic; }
+.home-family-name { font-size:13px; color:var(--ink-soft); margin:6px 0 0; }
+.home-card { margin:8px 16px 4px; padding:18px; border-radius:22px; background:var(--paper); border:1px solid var(--line); }
+.home-dial-card { display:flex; align-items:center; gap:18px; }
+.home-dial-text { flex:1; min-width:0; }
+.home-headline { font-family:var(--serif); font-size:22px; font-weight:400; margin:0; line-height:1.15; }
+.home-subline { font-size:13px; color:var(--ink-soft); margin:3px 0 0; }
+.home-section-header { display:flex; align-items:baseline; justify-content:space-between; padding:18px 20px 6px; }
+.home-section-header .text-btn { font-size:13px; color:var(--ink-soft); font-weight:500; padding:0; }
+.home-shortcuts { padding:14px 16px 0; }
+.home-shortcut { width:100%; display:flex; align-items:center; gap:14px; padding:16px 18px; border-radius:20px; background:var(--paper); border:1px solid var(--line); cursor:pointer; text-align:left; font-family:inherit; transition:transform 0.12s; }
+.home-shortcut:active { transform:scale(0.99); }
+.home-shortcut-icon { width:44px; height:44px; border-radius:14px; background:#ecdfd2; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.home-shortcut-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.home-shortcut-title { font-size:15px; font-weight:600; color:var(--ink); }
+.home-shortcut-sub { font-size:12.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* Miembros (home + overlay) */
+.member-list { padding:0 16px; }
+.member-row { width:100%; display:flex; align-items:center; gap:13px; padding:10px; border-radius:16px; background:transparent; border:none; font-family:inherit; text-align:left; }
+.member-row-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.member-row-name { font-size:15px; font-weight:500; color:var(--ink); }
+.member-row-sub { font-size:12px; color:var(--ink-soft); }
+.member-row-pending { font-size:12.5px; color:var(--ink-soft); font-family:var(--mono); flex-shrink:0; }
+.member-manage { cursor:pointer; }
+.member-manage:active { background:var(--bg-2); }
+.member-manage-icon { width:42px; height:42px; border-radius:21px; display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1.5px dashed var(--line); }
+.member-you { font-size:12px; color:var(--ink-mute); font-weight:400; }
+.members-family-name { font-family:var(--serif); font-size:30px; font-weight:400; margin:0; padding:8px 4px 2px; }
+.members-count { font-size:13px; color:var(--ink-soft); margin:0; padding:0 4px 16px; }
+.member-cards { display:flex; flex-direction:column; gap:8px; }
+.member-card { display:flex; align-items:center; gap:14px; padding:14px; border-radius:20px; background:var(--paper); border:1px solid var(--line); }
+.member-card-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.member-card-top { display:flex; align-items:center; gap:8px; }
+.role-badge { font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:999px; background:var(--accent-soft); color:oklch(0.4 0.07 145); }
+.invite-card { margin-top:20px; padding:20px; border-radius:24px; background:var(--accent-soft); border:1px solid oklch(0.85 0.04 145); }
+.invite-card-title { font-family:var(--serif); font-size:24px; font-weight:400; margin:0; color:oklch(0.35 0.08 145); }
+.invite-card-body { font-size:13px; color:oklch(0.42 0.06 145); margin:4px 0 16px; line-height:1.5; }
+.invite-card .btn-primary { display:flex; align-items:center; justify-content:center; gap:8px; }
+
+/* Sin familia */
+.no-family-card { text-align:center; padding:28px 22px; margin-top:16px; }
+.no-family-icon { display:flex; justify-content:center; margin-bottom:12px; }
+.no-family-title { font-family:var(--serif); font-size:26px; font-weight:400; margin:0 0 8px; }
+.no-family-body { font-size:14px; color:var(--ink-soft); line-height:1.55; margin:0 0 20px; }
+.no-family-card .btn-primary { margin-bottom:8px; }
+.no-family-card .btn-secondary { width:100%; height:48px; border-radius:14px; font-size:15px; font-weight:500; cursor:pointer; font-family:inherit; background:transparent; color:var(--ink); border:none; box-shadow:inset 0 0 0 1px var(--line); }
+
+/* Chips de filtro / categoría */
+.chip-row { display:flex; gap:8px; padding:8px 20px 10px; overflow-x:auto; scrollbar-width:none; }
+.chip-row::-webkit-scrollbar { display:none; }
+.chip-row-wrap { flex-wrap:wrap; overflow-x:visible; padding:0 22px; }
+.chip { padding:7px 14px; border-radius:999px; font-size:13px; font-weight:500; white-space:nowrap; background:transparent; color:var(--ink-soft); border:1px solid var(--line); cursor:pointer; font-family:inherit; transition:background 0.15s, color 0.15s; flex-shrink:0; }
+.chip.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+/* Tareas */
+.task-list { padding:0 16px; display:flex; flex-direction:column; gap:5px; }
+.task-row { display:flex; align-items:center; gap:13px; padding:11px 12px; border-radius:18px; background:var(--paper); border:1px solid var(--line); transition:background 0.2s; }
+.task-row.done { background:var(--row-bg, var(--paper)); border-color:transparent; }
+.task-icon { border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.task-row-text { flex:1; min-width:0; }
+.task-row-name { display:block; font-size:15px; font-weight:500; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.task-row.done .task-row-name { text-decoration:line-through; }
+.task-row-meta { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); margin-top:2px; }
+.task-assignee-chip { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:9px; font-size:9.5px; font-weight:700; flex-shrink:0; }
+.task-meta-dot { opacity:0.4; }
+.due-label { white-space:nowrap; }
+.t-check { width:42px; height:42px; border-radius:21px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:transparent; border:1.5px solid rgba(26,24,22,0.18); cursor:pointer; transition:background 0.15s, border-color 0.15s; }
+html[data-theme="dark"] .t-check { border-color:rgba(255,255,255,0.22); }
+.t-check.done { border-width:0; }
+.t-check-mark { display:flex; animation:pop 0.3s cubic-bezier(.2,.9,.4,1.2); }
+.t-del { width:34px; height:34px; border-radius:17px; display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer; flex-shrink:0; }
+.t-del:active { background:var(--bg-2); }
+
+/* Compra */
+.badge-shared { font-size:11px; color:var(--accent); font-weight:600; background:var(--accent-soft); padding:4px 10px; border-radius:999px; flex-shrink:0; }
+.shop-group { padding:6px 16px 0; }
+.shop-cat-label { font-size:11.5px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.7px; padding:8px 8px; }
+.shop-card { background:var(--paper); border:1px solid var(--line); border-radius:18px; overflow:hidden; }
+.shop-row { width:100%; display:flex; align-items:center; gap:13px; padding:13px 14px; background:transparent; border:none; border-bottom:1px solid var(--line-2); cursor:pointer; text-align:left; font-family:inherit; }
+.shop-row:last-child { border-bottom:none; }
+.shop-row:active { background:var(--bg-2); }
+.shop-check { width:24px; height:24px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border:1.5px solid rgba(26,24,22,0.2); transition:background 0.15s, border-color 0.15s; }
+html[data-theme="dark"] .shop-check { border-color:rgba(255,255,255,0.24); }
+.shop-check.on { background:var(--accent); border-color:var(--accent); animation:pop 0.3s cubic-bezier(.2,.9,.4,1.2); }
+.shop-row-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:1px; }
+.shop-row-name { font-size:15px; font-weight:500; color:var(--ink); }
+.shop-row.checked .shop-row-name { text-decoration:line-through; color:var(--ink-mute); }
+.shop-qty { font-size:12px; color:var(--ink-mute); font-family:var(--mono); }
+.btn-clear-checked { margin:16px auto 0; display:flex; align-items:center; gap:7px; padding:10px 18px; border-radius:999px; font-size:13.5px; font-weight:500; color:var(--ink-soft); background:transparent; border:1px solid var(--line); cursor:pointer; font-family:inherit; }
+.btn-clear-checked:active { background:var(--bg-2); }
+
+/* Hábitos: sub-pestañas */
+.habits-subtabs { padding:4px 20px 10px; }
+
+/* Sheets nuevos */
+.sheet-title { font-family:var(--serif); font-size:24px; font-weight:400; margin:0; padding:14px 22px 12px; }
+.sheet-desc { font-size:13.5px; color:var(--ink-soft); margin:-6px 0 14px; padding:0 22px; line-height:1.5; }
+.sheet-label { padding:0 22px; margin:18px 0 8px; }
+.sheet > .input { margin:0 22px; width:calc(100% - 44px); }
+.sheet > .btn-primary { margin:0 22px 28px; width:calc(100% - 44px); flex-shrink:0; }
+.sheet > .btn-secondary { margin:0 22px; width:calc(100% - 44px); height:48px; border-radius:14px; font-size:15px; font-weight:500; cursor:pointer; font-family:inherit; background:transparent; color:var(--ink); border:none; box-shadow:inset 0 0 0 1px var(--line); display:flex; align-items:center; justify-content:center; gap:8px; }
+.sheet > .btn-ghost { margin:-18px 22px 28px; width:calc(100% - 44px); flex:none; }
+.sheet > .chip-row-wrap { padding:0 22px; }
+
+/* Quick add */
+.qa-options { display:flex; flex-direction:column; gap:10px; padding:0 22px 28px; }
+.qa-option { display:flex; align-items:center; gap:14px; padding:16px; border-radius:18px; background:var(--surface, #fff); border:1px solid var(--line); cursor:pointer; text-align:left; font-family:inherit; transition:transform 0.12s; }
+.qa-option:active { transform:scale(0.98); }
+.qa-icon { width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.qa-text { display:flex; flex-direction:column; gap:1px; }
+.qa-title { font-size:16px; font-weight:600; color:var(--ink); }
+.qa-sub { font-size:12.5px; color:var(--ink-soft); }
+
+/* Selector de asignado */
+.avatar-pick-row { display:flex; gap:8px; padding:0 22px; overflow-x:auto; scrollbar-width:none; }
+.avatar-pick-row::-webkit-scrollbar { display:none; }
+.avatar-pick { display:flex; flex-direction:column; align-items:center; gap:6px; padding:4px; flex-shrink:0; background:none; border:none; cursor:pointer; font-family:inherit; border-radius:12px; }
+.avatar-pick .avatar { transition:box-shadow 0.15s; }
+.avatar-pick.active .avatar { box-shadow:0 0 0 2px var(--paper), 0 0 0 4px var(--ink); }
+.avatar-pick-name { font-size:11.5px; color:var(--ink-soft); }
+
+/* Cuándo */
+.when-row { display:flex; gap:8px; padding:0 22px; }
+.when-btn { flex:1; height:46px; border-radius:14px; font-size:14px; font-weight:500; background:transparent; color:var(--ink); border:1px solid var(--line); cursor:pointer; font-family:inherit; transition:background 0.15s, color 0.15s; }
+.when-btn.active { background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+/* Invitación */
+.qr-wrap { display:flex; justify-content:center; margin:4px 22px 16px; }
+.qr-wrap svg { padding:14px; background:#fff; border-radius:20px; border:1px solid var(--line); box-sizing:content-box; }
+html[data-theme="dark"] .qr-wrap svg { background:var(--paper); }
+.invite-code-box { display:flex; align-items:center; gap:12px; margin:0 22px; padding:14px 16px; border-radius:16px; background:var(--bg-2); border:1px solid var(--line); }
+.invite-code-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.invite-code-label { font-size:11px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.6px; }
+.invite-code { font-family:var(--mono); font-size:18px; font-weight:500; letter-spacing:0.5px; }
+.btn-copy { display:flex; align-items:center; gap:6px; padding:9px 14px; border-radius:999px; background:var(--ink); color:var(--paper); font-size:13px; font-weight:500; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }
+.invite-footnote { font-size:12.5px; color:var(--ink-mute); text-align:center; margin:14px 22px 28px; line-height:1.5; }
+.invite-input { font-family:var(--mono); letter-spacing:1px; text-transform:uppercase; }
