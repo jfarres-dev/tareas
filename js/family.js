@@ -67,6 +67,17 @@ async function createFamilyInvite() {
   return data; // { code, expires_at }
 }
 
+async function updateProfile(userId, { name, color }) {
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .update({ name: name, color: color || null })
+    .eq('id', userId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 async function leaveFamily(userId) {
   const { error } = await supabaseClient
     .from('family_members')

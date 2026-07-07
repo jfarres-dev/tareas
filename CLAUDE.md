@@ -45,7 +45,7 @@ All logic lives in `/js/` as classic scripts (global functions, no modules) load
 - `profiles`: id (= auth uid), name, color — auto-created by trigger on signup
 - `families` / `family_members`: one family per user (unique index), role `adult`
 - `family_invites`: code `FAM-XXXXXX`, 72 h expiry — created via RPC only
-- `family_tasks`: title, icon, assignee_id, due_date, done — shared within family
+- `family_tasks`: title, icon, assignee_id, due_date, done — shared within family. Rows with `frequency` set are recurring templates; their daily instances carry `template_id` (created lazily client-side in `ensureTaskInstances`, deduped by a partial unique index)
 - `shopping_items`: name, qty, category (`frutas`/`lacteos`/`panaderia`/`limpieza`/`otros`), checked, added_by — shared within family
 
 Row-level security is active. Private tables scope by `auth.uid() = user_id`; shared tables use `security definer` helpers (`is_family_member`, `shares_family_with`) to avoid RLS recursion. Create/join/invite go through `security definer` RPCs (`create_family`, `join_family_with_code`, `create_family_invite`) which raise token errors (`ALREADY_IN_FAMILY`, `INVALID_CODE`, `NOT_IN_FAMILY`) mapped to Spanish toasts in `js/family.js`.

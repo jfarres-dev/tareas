@@ -1403,3 +1403,15 @@ html[data-theme="dark"] .qr-wrap svg { background:var(--paper); }
 .btn-copy { display:flex; align-items:center; gap:6px; padding:9px 14px; border-radius:999px; background:var(--ink); color:var(--paper); font-size:13px; font-weight:500; border:none; cursor:pointer; font-family:inherit; flex-shrink:0; }
 .invite-footnote { font-size:12.5px; color:var(--ink-mute); text-align:center; margin:14px 22px 28px; line-height:1.5; }
 .invite-input { font-family:var(--mono); letter-spacing:1px; text-transform:uppercase; }
+
+/* Tareas recurrentes */
+.when-btn { display:flex; align-items:center; justify-content:center; gap:6px; }
+.task-day-picker { padding:10px 22px 0; }
+.task-day-hint { font-size:12px; color:var(--ink-mute); margin:8px 0 0; text-align:center; }
+.task-repeat-badge { display:inline-flex; align-items:center; color:var(--ink-mute); }
+
+/* Editar perfil */
+.profile-preview { display:flex; justify-content:center; padding:4px 0 6px; }
+
+/* Toast clicable (nueva versión) */
+#toast.toast-action { cursor:pointer; pointer-events:auto; }

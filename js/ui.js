@@ -537,6 +537,7 @@ function buildTaskRow(task, members, compact) {
     + '<span class="task-assignee-chip" style="background:' + c.bg + ';color:' + c.ink + '">' + name.charAt(0).toUpperCase() + '</span>'
     + '<span>' + _esc(name) + '</span>'
     + (compact ? '' : '<span class="task-meta-dot">·</span><span class="due-label">' + taskDueLabel(task) + '</span>')
+    + (task.template_id ? '<span class="task-repeat-badge">' + icon('repeat', 12, 'currentColor', 1.8) + '</span>' : '')
     + '</div>';
 
   var check = '<button class="t-check' + (task.done ? ' done' : '') + '" onclick="handleToggleTask(\'' + task.id + '\')" style="' + (task.done ? 'background:' + c.dot + ';border-color:' + c.dot : '') + '" aria-label="Completar">'
@@ -662,10 +663,25 @@ function renderAddTaskSheet(draft, members) {
       + '</button>';
   }).join('');
 
-  var isToday = draft.dueDate === today();
+  var isRecurring = draft.repeat === 'recurring';
+  var isToday = !isRecurring && draft.dueDate === today();
+  var isTomorrow = !isRecurring && !isToday;
   var whenBtns =
     '<button class="when-btn' + (isToday ? ' active' : '') + '" onclick="setTaskDue(0)">Hoy</button>'
-    + '<button class="when-btn' + (!isToday ? ' active' : '') + '" onclick="setTaskDue(1)">Mañana</button>';
+    + '<button class="when-btn' + (isTomorrow ? ' active' : '') + '" onclick="setTaskDue(1)">Mañana</button>'
+    + '<button class="when-btn' + (isRecurring ? ' active' : '') + '" onclick="setTaskRepeat()">' + icon('repeat', 15, 'currentColor', 1.8) + ' Repetir</button>';
+
+  var dayPicker = '';
+  if (isRecurring) {
+    var days = draft.days || [];
+    var dayBtns = WEEKDAYS.map(function(d, i) {
+      var sel = days.indexOf(i) !== -1;
+      return '<button class="day-btn' + (sel ? ' active' : '') + '" onclick="toggleTaskDay(' + i + ')">' + d + '</button>';
+    }).join('');
+    var hint = days.length === 7 ? 'Cada día' : 'Los días marcados, cada semana';
+    dayPicker = '<div class="task-day-picker"><div class="day-picker">' + dayBtns + '</div>'
+      + '<p class="task-day-hint">' + hint + '</p></div>';
+  }
 
   document.getElementById('sheet-add').innerHTML =
     '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
@@ -677,6 +693,7 @@ function renderAddTaskSheet(draft, members) {
     + '<div class="avatar-pick-row">' + avatars + '</div>'
     + '<label class="form-label sheet-label">Cuándo</label>'
     + '<div class="when-row">' + whenBtns + '</div>'
+    + dayPicker
     + '<button class="btn-primary" id="save-task-btn" onclick="saveTask()" style="opacity:' + ((draft.title || '').trim() ? '1' : '0.4') + ';margin-top:20px">Crear tarea</button>'
     + '</div>';
 
@@ -737,6 +754,26 @@ function renderJoinFamilySheet(prefillCode) {
 
   var input = document.getElementById('invite-code-input');
   if (input && !prefillCode) input.focus();
+}
+
+function renderEditProfileSheet(draft) {
+  var swatches = HABIT_COLORS.map(function(c) {
+    return '<button class="color-swatch' + (c.id === draft.color ? ' active' : '') + '" onclick="setProfileDraftColor(\'' + c.id + '\')" style="background:' + c.dot + '" title="' + c.id + '"></button>';
+  }).join('');
+  var preview = buildMemberAvatar({ id: '', name: draft.name || '?', color: draft.color }, 56);
+
+  document.getElementById('sheet-add').innerHTML =
+    '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
+    + '<div class="sheet">'
+    + '<div class="sheet-handle"></div>'
+    + '<h3 class="sheet-title">Editar perfil</h3>'
+    + '<div class="profile-preview">' + preview + '</div>'
+    + '<label class="form-label sheet-label">Tu nombre</label>'
+    + '<input class="input" id="profile-name-input" type="text" placeholder="Tu nombre" maxlength="60" value="' + _esc(draft.name || '') + '" oninput="updateProfileDraftName(this.value)" />'
+    + '<label class="form-label sheet-label">Color de tu avatar</label>'
+    + '<div class="color-picker" style="padding:0 22px">' + swatches + '</div>'
+    + '<button class="btn-primary" onclick="handleSaveProfile()" style="margin-top:20px">Guardar</button>'
+    + '</div>';
 }
 
 function renderInviteSheet(inviteInfo, link) {
@@ -1110,20 +1147,21 @@ function buildIconPicker(selected) {
 
 // ── Profile sheet ─────────────────────────────────────────────
 
-function renderProfile(user, habits, family) {
+function renderProfile(user, habits, family, profile) {
   var totalHabits = habits.length;
   var todayStr = today();
   var doneTodayCount = habits.filter(function(h) {
     return isScheduledOn(h, new Date()) && isComplete(h, h.log[todayStr]);
   }).length;
-  var name = (user.user_metadata && user.user_metadata.name) || user.email || 'Usuario';
+  var name = (profile && profile.name) || (user.user_metadata && user.user_metadata.name) || user.email || 'Usuario';
+  var avatar = profile ? buildMemberAvatar(profile, 52) : buildAvatar(user, 52);
 
   document.getElementById('sheet-profile').innerHTML =
     '<div class="sheet-backdrop" onclick="closeProfile()"></div>'
     + '<div class="sheet">'
     + '<div class="sheet-handle"></div>'
     + '<div class="sheet-header">'
-    + buildAvatar(user, 52)
+    + avatar
     + '<div class="sheet-user-info">'
     + '<p class="sheet-name">' + _esc(name) + '</p>'
     + '<p class="sheet-email">' + _esc(user.email || '') + '</p>'
@@ -1135,11 +1173,13 @@ function renderProfile(user, habits, family) {
     + '<div class="sheet-stat"><span class="sheet-stat-val">' + doneTodayCount + '</span><span class="sheet-stat-label">Hoy</span></div>'
     + '</div>'
     + '<div class="sheet-actions">'
+    + (profile ? '<button class="sheet-btn" onclick="openEditProfileSheet()">' + icon('pen', 18, 'var(--ink)', 1.7) + '<span>Editar perfil</span></button>' : '')
     + '<button class="sheet-btn" onclick="closeProfile();openMembers()">' + icon('users', 18, 'var(--ink)', 1.7) + '<span>' + (family ? 'Gestionar familia' : 'Crear o unirme a una familia') + '</span></button>'
     + '<button class="sheet-btn" onclick="closeProfile();openCreate()">' + icon('plus', 18, 'var(--ink)', 1.7) + '<span>Nuevo hábito</span></button>'
     + '<button class="sheet-btn" onclick="handleThemeToggle()">' + icon(currentTheme === 'dark' ? 'sun' : 'moon', 18, 'var(--ink)', 1.7) + '<span>' + (currentTheme === 'dark' ? 'Modo claro' : 'Modo oscuro') + '</span></button>'
     + ((!isStandalone() && deferredInstallPrompt) ? '<button class="sheet-btn" onclick="handleInstallPWA()">' + icon('phone', 18, 'var(--ink)', 1.7) + '<span>Instalar app</span></button>' : '')
     + ((!isStandalone() && !deferredInstallPrompt && isIOS()) ? '<button class="sheet-btn" onclick="showIOSInstallHint()">' + icon('phone', 18, 'var(--ink)', 1.7) + '<span>Instalar en iPhone</span></button>' : '')
+    + '<button class="sheet-btn" onclick="handleShareApp()">' + icon('share', 18, 'var(--ink)', 1.7) + '<span>Compartir la app</span></button>'
     + '<button class="sheet-btn danger" onclick="handleLogout()">' + icon('arrow', 18, 'var(--danger)', 1.7) + '<span>Cerrar sesión</span></button>'
     + '</div>'
     + '</div>';
@@ -1185,9 +1225,24 @@ function renderValueSheet(habit, currentValue) {
 function showToast(msg) {
   var el = document.getElementById('toast');
   el.textContent = msg;
+  el.onclick = null;
+  el.classList.remove('toast-action');
   el.classList.add('visible');
   clearTimeout(el._t);
   el._t = setTimeout(function() { el.classList.remove('visible'); }, 2200);
+}
+
+// Aviso persistente de nueva versión: tocar recarga la app
+function showUpdateToast() {
+  var el = document.getElementById('toast');
+  el.textContent = 'Nueva versión disponible · toca para actualizar';
+  el.onclick = function() { location.reload(); };
+  el.classList.add('visible', 'toast-action');
+  clearTimeout(el._t);
+  el._t = setTimeout(function() {
+    el.classList.remove('visible', 'toast-action');
+    el.onclick = null;
+  }, 12000);
 }
 
 // ── View routing ──────────────────────────────────────────────

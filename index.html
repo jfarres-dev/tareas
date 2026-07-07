@@ -67,7 +67,19 @@
 <script>
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/tareas/sw.js', { scope: '/tareas/' });
+      navigator.serviceWorker.register('/tareas/sw.js', { scope: '/tareas/' }).then((reg) => {
+        // Buscar versiones nuevas al volver a la app (PWA abierta mucho tiempo)
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update();
+        });
+      });
+      // El sw.js hace skipWaiting + clients.claim: cuando un SW nuevo toma el
+      // control ya había uno anterior → hay versión nueva, avisar para recargar.
+      let hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (hadController && typeof showUpdateToast === 'function') showUpdateToast();
+        hadController = true;
+      });
     });
   }
 </script>

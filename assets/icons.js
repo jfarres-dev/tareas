@@ -60,6 +60,8 @@ const ICON_PATHS = {
   utensils:    `<path d="M7 3v8"/><path d="M5 3v4a2 2 0 0 0 4 0V3"/><path d="M7 11v10"/><path d="M16 3c-1.5 0-2.6 2-2.6 5s1.1 4 2.6 4v9"/>`,
   paw:         `<circle cx="7.5" cy="9" r="1.5" fill="$c" stroke="none"/><circle cx="12" cy="7.3" r="1.6" fill="$c" stroke="none"/><circle cx="16.5" cy="9" r="1.5" fill="$c" stroke="none"/><path d="M8 15.5c0-2 1.8-3 4-3s4 1 4 3-1.8 3.5-4 3.5-4-1.5-4-3.5z" fill="$c" stroke="none"/>`,
   shirt:       `<path d="M9 4 4 7l2 3 2-1v11h8V9l2 1 2-3-5-3-2 2-2-1z"/>`,
+  repeat:      `<path d="M17 4l3 3-3 3"/><path d="M20 7H8a4 4 0 0 0-4 4"/><path d="M7 20l-3-3 3-3"/><path d="M4 17h12a4 4 0 0 0 4-4"/>`,
+  share:       `<path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 11v9h14v-9"/>`,
 };
 
 const ICON_OPTIONS = ['leaf','droplet','book','walk','yoga','pen','sun','moon','coffee','music','dumbbell','flame','target','sparkle','phone','heart','bike','bed','headphones','star','eye','camera','pill','tree','wind','chart','palette','apple','stretch','bowl','cart','utensils','paw','box','shirt'];

@@ -45,6 +45,8 @@ create table if not exists family_invites (
 alter table family_invites enable row level security;
 
 -- 5. Tareas asignadas
+--    Una fila con frequency != null es una *plantilla recurrente*; sus
+--    instancias diarias se crean con template_id apuntando a la plantilla.
 create table if not exists family_tasks (
   id          uuid primary key default gen_random_uuid(),
   family_id   uuid not null references families(id) on delete cascade,
@@ -54,10 +56,17 @@ create table if not exists family_tasks (
   due_date    date not null default current_date,
   done        boolean not null default false,
   done_at     timestamptz,
+  frequency   jsonb,
+  template_id uuid references family_tasks(id) on delete cascade,
   created_by  uuid references profiles(id) on delete set null,
   created_at  timestamptz not null default now()
 );
+-- Por si la tabla ya existía de una versión anterior de este script:
+alter table family_tasks add column if not exists frequency jsonb;
+alter table family_tasks add column if not exists template_id uuid references family_tasks(id) on delete cascade;
 create index if not exists idx_tasks_family_due on family_tasks(family_id, due_date);
+-- Evita instancias duplicadas de la misma plantilla el mismo día (carrera entre 2 clientes)
+create unique index if not exists idx_task_instance_day on family_tasks(template_id, due_date) where template_id is not null;
 alter table family_tasks enable row level security;
 
 -- 6. Lista de la compra

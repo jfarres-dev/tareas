@@ -14,7 +14,9 @@ let myProfile = null;
 let family = null;            // { id, name, role } | null
 let familyMembers = [];       // [{ id, name, color, role }]
 let familyTasks = [];
+let familyTaskTemplates = []; // tareas recurrentes (frequency != null)
 let shoppingItems = [];
+let profileDraft = {};
 let taskFilter = 'all';       // 'all' | member id
 let habitsSubTab = 'today';   // 'today' | 'all'
 let taskDraft = {};
@@ -116,17 +118,11 @@ async function loadDashboard() {
       myProfile = await ensureProfile(currentUser);
       family = await fetchMyFamily(currentUser.id);
       if (family) {
-        const results = await Promise.all([
-          fetchFamilyMembers(family.id),
-          fetchFamilyTasks(family.id),
-          fetchShoppingItems(family.id),
-        ]);
-        familyMembers = results[0];
-        familyTasks = results[1];
-        shoppingItems = results[2];
+        await fetchFamilySharedData();
       } else {
         familyMembers = [];
         familyTasks = [];
+        familyTaskTemplates = [];
         shoppingItems = [];
       }
     } catch (famErr) {
@@ -539,7 +535,7 @@ function closeValueSheet() {
 // ── Profile sheet ─────────────────────────────────────────────
 
 function openProfile() {
-  renderProfile(currentUser, habits, family);
+  renderProfile(currentUser, habits, family, myProfile);
 }
 
 function closeProfile() {
@@ -618,7 +614,7 @@ function requireFamily() {
 
 function openAddTaskSheet() {
   if (!requireFamily()) return;
-  taskDraft = { title: '', assigneeId: currentUser.id, dueDate: today() };
+  taskDraft = { title: '', assigneeId: currentUser.id, dueDate: today(), repeat: 'once', days: [0,1,2,3,4,5,6] };
   renderAddTaskSheet(taskDraft, familyMembers);
 }
 
@@ -634,12 +630,34 @@ function setTaskAssignee(id) {
 }
 
 function setTaskDue(offset) {
+  taskDraft.repeat = 'once';
   taskDraft.dueDate = offset === 1 ? toDateString(new Date(Date.now() + 86400000)) : today();
+  renderAddTaskSheet(taskDraft, familyMembers);
+}
+
+function setTaskRepeat() {
+  taskDraft.repeat = 'recurring';
+  renderAddTaskSheet(taskDraft, familyMembers);
+}
+
+function toggleTaskDay(dayIndex) {
+  var days = taskDraft.days || [];
+  var pos = days.indexOf(dayIndex);
+  if (pos === -1) days.push(dayIndex);
+  else if (days.length > 1) days.splice(pos, 1); // al menos un día
+  days.sort(function(a, b) { return a - b; });
+  taskDraft.days = days;
   renderAddTaskSheet(taskDraft, familyMembers);
 }
 
 async function saveTask() {
   if (!taskDraft.title || !taskDraft.title.trim()) return;
+  var frequency = null;
+  if (taskDraft.repeat === 'recurring') {
+    frequency = taskDraft.days.length === 7
+      ? { kind: 'daily' }
+      : { kind: 'weekdays', days: taskDraft.days.slice() };
+  }
   try {
     await createTask({
       familyId: family.id,
@@ -648,9 +666,10 @@ async function saveTask() {
       dueDate: taskDraft.dueDate,
       icon: pickTaskIcon(taskDraft.title),
       createdBy: currentUser.id,
+      frequency: frequency,
     });
     closeAddSheet();
-    showToast('Tarea creada');
+    showToast(frequency ? 'Tarea recurrente creada' : 'Tarea creada');
     await refreshFamilyData();
   } catch (e) {
     console.error('saveTask error', e);
@@ -674,10 +693,23 @@ async function handleToggleTask(id) {
 }
 
 async function handleDeleteTask(id) {
-  if (!confirm('¿Eliminar esta tarea?')) return;
+  var task = familyTasks.find(function(t) { return t.id === id; });
+  if (!task) return;
   try {
-    await deleteTask(id);
-    showToast('Tarea eliminada');
+    if (task.template_id) {
+      // Instancia de una tarea recurrente
+      if (confirm('Esta tarea se repite. ¿Eliminar también las próximas repeticiones?\n\nAceptar: eliminar la tarea recurrente entera.\nCancelar: quitar solo la de hoy.')) {
+        await deleteTask(task.template_id); // el cascade borra las instancias
+        showToast('Tarea recurrente eliminada');
+      } else {
+        await deleteTask(id);
+        showToast('Tarea eliminada');
+      }
+    } else {
+      if (!confirm('¿Eliminar esta tarea?')) return;
+      await deleteTask(id);
+      showToast('Tarea eliminada');
+    }
     await refreshFamilyData();
   } catch (e) {
     console.error('handleDeleteTask error', e);
@@ -825,12 +857,25 @@ function inviteLink(code) {
   return location.origin + location.pathname + '?invite=' + encodeURIComponent(code);
 }
 
-async function copyToClipboard(text) {
+async function copyToClipboard(text, msg) {
   try {
     await navigator.clipboard.writeText(text);
-    showToast('Copiado');
+    showToast(msg || 'Copiado');
   } catch (e) {
-    showToast('No se pudo copiar');
+    // Fallback para navegadores sin Clipboard API
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast(msg || 'Copiado');
+    } catch (e2) {
+      showToast('No se pudo copiar');
+    }
   }
 }
 
@@ -856,6 +901,60 @@ async function handleLeaveFamily() {
   }
 }
 
+// ── Edit profile ──────────────────────────────────────────────
+
+function openEditProfileSheet() {
+  if (!myProfile) { showToast('Perfil no disponible'); return; }
+  closeProfile();
+  profileDraft = {
+    name: myProfile.name || '',
+    color: memberColor(myProfile),
+  };
+  renderEditProfileSheet(profileDraft);
+}
+
+function updateProfileDraftName(val) {
+  profileDraft.name = val;
+}
+
+function setProfileDraftColor(id) {
+  profileDraft.color = id;
+  renderEditProfileSheet(profileDraft);
+}
+
+async function handleSaveProfile() {
+  var name = (profileDraft.name || '').trim();
+  if (!name) { showToast('El nombre es obligatorio'); return; }
+  try {
+    myProfile = await updateProfile(currentUser.id, { name: name, color: profileDraft.color });
+    var mine = familyMembers.find(function(m) { return m.id === currentUser.id; });
+    if (mine) { mine.name = myProfile.name; mine.color = myProfile.color; }
+    closeAddSheet();
+    showToast('Perfil actualizado');
+    renderCurrentTab();
+  } catch (e) {
+    console.error('handleSaveProfile error', e);
+    showToast('Error al guardar');
+  }
+}
+
+// ── Share app ─────────────────────────────────────────────────
+
+async function handleShareApp() {
+  var url = location.origin + location.pathname;
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Hábitos',
+        text: 'Organizamos las tareas de casa, la lista de la compra y nuestros hábitos con esta app. ¡Pruébala!',
+        url: url,
+      });
+    } catch (e) { /* el usuario canceló el diálogo */ }
+  } else {
+    copyToClipboard(url, 'Enlace copiado');
+  }
+}
+
 // ── Habits sub-tab ────────────────────────────────────────────
 
 function setHabitsSubTab(val) {
@@ -865,17 +964,27 @@ function setHabitsSubTab(val) {
 
 // ── Data refresh ──────────────────────────────────────────────
 
+// Descarga miembros, tareas, plantillas y compra; materializa las
+// instancias de hoy de las tareas recurrentes que falten.
+async function fetchFamilySharedData() {
+  const results = await Promise.all([
+    fetchFamilyMembers(family.id),
+    fetchFamilyTasks(family.id),
+    fetchTaskTemplates(family.id),
+    fetchShoppingItems(family.id),
+  ]);
+  familyMembers = results[0];
+  familyTasks = results[1];
+  familyTaskTemplates = results[2];
+  shoppingItems = results[3];
+  const created = await ensureTaskInstances(familyTaskTemplates, familyTasks);
+  if (created) familyTasks = await fetchFamilyTasks(family.id);
+}
+
 async function refreshFamilyData(silent) {
   if (!family) return;
   try {
-    const results = await Promise.all([
-      fetchFamilyMembers(family.id),
-      fetchFamilyTasks(family.id),
-      fetchShoppingItems(family.id),
-    ]);
-    familyMembers = results[0];
-    familyTasks = results[1];
-    shoppingItems = results[2];
+    await fetchFamilySharedData();
     if (currentTab === 'home' || currentTab === 'tasks' || currentTab === 'shopping') {
       renderCurrentTab();
     }
