@@ -34,14 +34,34 @@ create unique index if not exists idx_member_single_family on family_members(use
 alter table family_members enable row level security;
 
 -- 4. Invitaciones por código
+--    De un solo uso: al unirse alguien se marca used_at y el código deja de
+--    valer. Así un enlace reenviado o filtrado no da acceso indefinido.
 create table if not exists family_invites (
   id         uuid primary key default gen_random_uuid(),
   family_id  uuid not null references families(id) on delete cascade,
   code       text not null unique,
   created_by uuid not null references auth.users(id),
   expires_at timestamptz not null,
+  used_at    timestamptz,
+  used_by    uuid references profiles(id) on delete set null,
   created_at timestamptz not null default now()
 );
+-- Por si la tabla ya existía de una versión anterior de este script:
+alter table family_invites add column if not exists used_at timestamptz;
+alter table family_invites add column if not exists used_by uuid references profiles(id) on delete set null;
+-- Versiones anteriores permitían acumular códigos: dejar solo el más reciente
+-- de cada familia, o el índice de abajo no se puede crear.
+delete from family_invites fi
+ where fi.used_at is null
+   and exists (
+     select 1 from family_invites otro
+      where otro.family_id = fi.family_id
+        and otro.used_at is null
+        and (otro.created_at, otro.id) > (fi.created_at, fi.id)
+   );
+-- Un único código vigente por familia (los usados no estorban)
+create unique index if not exists idx_invite_active_family
+  on family_invites(family_id) where used_at is null;
 alter table family_invites enable row level security;
 
 -- 5. Tareas asignadas
@@ -163,6 +183,9 @@ begin
   return fam;
 end $$;
 
+-- Devuelve el código vigente de la familia si lo hay, o crea uno nuevo.
+-- Reutilizar evita que abrir la pantalla de invitar N veces deje N códigos
+-- válidos a la vez.
 create or replace function create_family_invite()
 returns json language plpgsql security definer set search_path = public as $$
 declare
@@ -171,6 +194,19 @@ declare
 begin
   select family_id into fam from family_members where user_id = auth.uid();
   if fam is null then raise exception 'NOT_IN_FAMILY'; end if;
+
+  -- ¿Ya hay uno sin usar y sin caducar? Devolver ese.
+  select code, expires_at into new_code, exp
+    from family_invites
+   where family_id = fam and used_at is null and expires_at > now();
+  if new_code is not null then
+    return json_build_object('code', new_code, 'expires_at', exp);
+  end if;
+
+  -- Los caducados sin usar estorban al índice de "un vigente por familia"
+  delete from family_invites
+   where family_id = fam and used_at is null and expires_at <= now();
+
   loop
     new_code := 'FAM-';
     for i in 1..6 loop
@@ -179,31 +215,69 @@ begin
     exit when not exists (select 1 from family_invites where code = new_code);
   end loop;
   exp := now() + interval '72 hours';
-  insert into family_invites (family_id, code, created_by, expires_at)
-  values (fam, new_code, auth.uid(), exp);
+  begin
+    insert into family_invites (family_id, code, created_by, expires_at)
+    values (fam, new_code, auth.uid(), exp);
+  exception when unique_violation then
+    -- Doble pulsación: otra llamada creó el código a la vez. Devolver ese.
+    select code, expires_at into new_code, exp
+      from family_invites
+     where family_id = fam and used_at is null and expires_at > now();
+    -- La otra transacción aún no había confirmado: mejor error que código nulo
+    if new_code is null then raise exception 'INVITE_RETRY'; end if;
+  end;
   return json_build_object('code', new_code, 'expires_at', exp);
+end $$;
+
+-- Invalida el código vigente (por si se compartió por error).
+create or replace function revoke_family_invite()
+returns int language plpgsql security definer set search_path = public as $$
+declare fam uuid; n int;
+begin
+  select family_id into fam from family_members where user_id = auth.uid();
+  if fam is null then raise exception 'NOT_IN_FAMILY'; end if;
+  delete from family_invites where family_id = fam and used_at is null;
+  get diagnostics n = row_count;
+  return n;
 end $$;
 
 create or replace function join_family_with_code(invite_code text)
 returns uuid language plpgsql security definer set search_path = public as $$
-declare inv record;
+declare c text; fam uuid;
 begin
   if auth.uid() is null then raise exception 'NOT_AUTHENTICATED'; end if;
+  -- Antes de gastar el código: si ya está en una familia, no se consume
   if exists (select 1 from family_members where user_id = auth.uid()) then
     raise exception 'ALREADY_IN_FAMILY';
   end if;
-  select * into inv from family_invites
-  where code = upper(trim(invite_code)) and expires_at > now();
-  if inv is null then raise exception 'INVALID_CODE'; end if;
-  insert into family_members (family_id, user_id) values (inv.family_id, auth.uid());
-  return inv.family_id;
+  c := upper(trim(coalesce(invite_code, '')));
+
+  -- Consumir y validar en una sola sentencia: si dos personas usan el mismo
+  -- código a la vez, el update solo lo gana una (la otra ve 0 filas).
+  update family_invites
+     set used_at = now(), used_by = auth.uid()
+   where code = c and used_at is null and expires_at > now()
+  returning family_id into fam;
+
+  if fam is null then
+    -- Solo para elegir el mensaje; la autorización la decidió el update
+    if exists (select 1 from family_invites where code = c and used_at is not null) then
+      raise exception 'CODE_USED';
+    end if;
+    raise exception 'INVALID_CODE';
+  end if;
+
+  insert into family_members (family_id, user_id) values (fam, auth.uid());
+  return fam;
 end $$;
 
 revoke all on function create_family(text) from public, anon;
 revoke all on function create_family_invite() from public, anon;
+revoke all on function revoke_family_invite() from public, anon;
 revoke all on function join_family_with_code(text) from public, anon;
 grant execute on function create_family(text) to authenticated;
 grant execute on function create_family_invite() to authenticated;
+grant execute on function revoke_family_invite() to authenticated;
 grant execute on function join_family_with_code(text) to authenticated;
 
 -- 10. Borrar familia huérfana cuando sale el último miembro

@@ -824,11 +824,25 @@ function renderEditProfileSheet(draft) {
     + '</div>';
 }
 
+// "hoy a las 14:30" / "mañana a las 9:05" / "el 3 de agosto a las 14:30"
+function _fmtExpiry(iso) {
+  var d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  var hh = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
+  var k = fmtKey(d);
+  var day;
+  if (k === fmtKey(new Date())) day = 'hoy';
+  else if (k === fmtKey(new Date(Date.now() + DAY_MS))) day = 'mañana';
+  else day = 'el ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
+  return day + ' a las ' + hh;
+}
+
 function renderInviteSheet(inviteInfo, link) {
   var qrBlock = '';
   if (typeof qrcodegen !== 'undefined') {
     qrBlock = '<div class="qr-wrap">' + buildQrSvg(link, 168) + '</div>';
   }
+  var exp = _fmtExpiry(inviteInfo.expires_at);
   document.getElementById('sheet-add').innerHTML =
     '<div class="sheet-backdrop" onclick="closeAddSheet()"></div>'
     + '<div class="sheet">'
@@ -844,7 +858,11 @@ function renderInviteSheet(inviteInfo, link) {
     + '<button class="btn-copy" onclick="handleCopyInviteCode()">' + icon('copy', 15, 'currentColor', 1.7) + 'Copiar</button>'
     + '</div>'
     + '<button class="btn-secondary" onclick="handleCopyInviteLink()" style="margin-top:10px">' + icon('link', 16, 'currentColor', 1.7) + ' Copiar enlace</button>'
-    + '<p class="invite-footnote">El código caduca en 72 horas.</p>'
+    + '<p class="invite-footnote">Sirve para una sola persona: en cuanto alguien se une, deja de valer.'
+    + (exp ? ' Caduca ' + exp + '.' : '')
+    + '</p>'
+    + '<button class="btn-ghost" onclick="handleRegenerateInvite()">Generar código nuevo</button>'
+    + '<button class="btn-ghost" onclick="handleRevokeInvite()" style="margin-top:8px;color:var(--danger)">Invalidar este código</button>'
     + '</div>';
 }
 

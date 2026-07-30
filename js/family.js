@@ -61,10 +61,16 @@ async function joinFamilyWithCode(code) {
   return data;
 }
 
+// Devuelve el código vigente de la familia, o uno nuevo si no había
 async function createFamilyInvite() {
   const { data, error } = await supabaseClient.rpc('create_family_invite');
   if (error) throw error;
   return data; // { code, expires_at }
+}
+
+async function revokeFamilyInvite() {
+  const { error } = await supabaseClient.rpc('revoke_family_invite');
+  if (error) throw error;
 }
 
 async function updateProfile(userId, { name, color }) {
@@ -102,6 +108,7 @@ function familyErrorMessage(err) {
     return 'Sin conexión. Comprueba tu red e inténtalo de nuevo.';
   }
   if (msg.indexOf('ALREADY_IN_FAMILY') !== -1) return 'Ya perteneces a una familia';
+  if (msg.indexOf('CODE_USED') !== -1) return 'Ese código ya se ha usado. Pide uno nuevo.';
   if (msg.indexOf('INVALID_CODE') !== -1) return 'Código no válido o caducado';
   if (msg.indexOf('NOT_IN_FAMILY') !== -1) return 'No perteneces a ninguna familia';
   if (msg.indexOf('INVALID_NAME') !== -1) return 'Pon un nombre a la familia';

@@ -922,6 +922,31 @@ async function openInviteSheet() {
   }
 }
 
+// Invalida el código actual y muestra uno nuevo
+async function handleRegenerateInvite() {
+  try {
+    await revokeFamilyInvite();
+    inviteInfo = await createFamilyInvite();
+    renderInviteSheet(inviteInfo, inviteLink(inviteInfo.code));
+    showToast('Código nuevo generado');
+  } catch (e) {
+    console.error('handleRegenerateInvite error', e);
+    showToast(familyErrorMessage(e));
+  }
+}
+
+async function handleRevokeInvite() {
+  try {
+    await revokeFamilyInvite();
+    inviteInfo = null;
+    closeAddSheet();
+    showToast('Código invalidado');
+  } catch (e) {
+    console.error('handleRevokeInvite error', e);
+    showToast(familyErrorMessage(e));
+  }
+}
+
 function inviteLink(code) {
   return location.origin + location.pathname + '?invite=' + encodeURIComponent(code);
 }
