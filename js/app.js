@@ -700,7 +700,7 @@ function setTaskAssignee(id) {
 
 function setTaskDue(offset) {
   taskDraft.repeat = 'once';
-  taskDraft.dueDate = offset === 1 ? toDateString(new Date(Date.now() + 86400000)) : today();
+  taskDraft.dueDate = offset === 1 ? tomorrow() : today();
   renderAddTaskSheet(taskDraft, familyMembers);
 }
 

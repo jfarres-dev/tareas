@@ -16,7 +16,15 @@ All user-facing strings and code comments are in Spanish. Keep it that way.
 npx serve -l 5173 .
 ```
 
-Also configured in `.claude/launch.json` as `habitos` (use `preview_start` with that name). No build, no bundler, no linter, no test suite — changes are visible on page reload.
+Also configured in `.claude/launch.json` as `habitos` (use `preview_start` with that name). No build, no bundler, no linter — changes are visible on page reload.
+
+Tests cover only the pure date helpers in `js/logs.js`, via Node's built-in runner (no dependencies):
+
+```bash
+node --test tests/dates.test.js
+```
+
+`node --test tests/` fails on this machine (Git Bash mangles the directory arg), so pass the file. `tests/` is not part of the app — keep it out of `index.html` and `SHELL_ASSETS`. Since the sources are classic scripts with no exports, the test evaluates `js/logs.js` inside a `vm` context and can freeze "now" to probe specific local times.
 
 ## Deployment
 
@@ -34,7 +42,7 @@ All logic lives in `/js/` as classic scripts — global `function` declarations,
 | `js/supabase.js` | Client init (URL + publishable key) with a 15 s `fetchWithTimeout` wrapper so a dead network fails loudly instead of hanging |
 | `js/auth.js` | Thin `supabaseClient.auth` wrappers — **currently dead code**; `app.js` calls `supabaseClient.auth` directly everywhere |
 | `js/habits.js` | Habit CRUD — delete is a soft delete via `is_active` |
-| `js/logs.js` | Log read/write, date helpers, frequency scheduling, `enrichHabit`, streak/rate stats |
+| `js/logs.js` | Log read/write, date helpers (see below), frequency scheduling, `enrichHabit`, streak/rate stats |
 | `js/family.js` | Profiles, family membership, invite RPCs, `familyErrorMessage` |
 | `js/tasks.js` | Shared task CRUD, recurring-instance materialization, keyword→icon rules |
 | `js/shopping.js` | Shopping list CRUD, `SHOP_CATEGORIES` |
@@ -70,6 +78,17 @@ Base schema in `setup.sql`, family features in `family.sql`.
 **Frequency jsonb** is used by both habits and task templates: `{kind:'daily'}`, `{kind:'weekdays', days:[0..6]}` (Monday = 0, via `isoDay`), and for habits only `{kind:'per-week'|'per-month', n}`. `isScheduledOn` treats per-week/per-month as "every day is a potential slot", so those habits never look skipped. `isTaskScheduledOn` supports only `daily` and `weekdays`.
 
 **Recurring task instances** are materialized client-side, not by a cron job: `ensureTaskInstances` (called from `fetchFamilySharedData` on every load/refresh) inserts today's missing instance per template. Concurrent clients racing is expected and absorbed — the partial unique index `idx_task_instance_day` raises `23505`, which the code swallows.
+
+### Dates
+
+Every date in the app is a `'YYYY-MM-DD'` **local-time** key — `habit_logs.log_date`, `family_tasks.due_date`, and the keys of the `habit.log` map built by `buildLogMap`. `toDateString()` in `js/logs.js` is the single source of that format; `fmtKey()` is a legacy alias that delegates to it.
+
+Two rules, both learned from real bugs:
+
+- **Never use `toISOString()` to derive a day key.** It returns UTC, so between midnight and 02:00 Spanish summer time it names the previous day. That's what made `handleCheck` write a log under yesterday's key while the streak and heatmap looked for today's.
+- **Never add `86400000` ms to move a day.** DST days are 23 or 25 hours long, so on the October changeover that lands back on the same date. Use `tomorrow()`, or `setDate(getDate() + n)` as `daysAgo()` does — calendar arithmetic, not millisecond arithmetic.
+
+`tests/dates.test.js` pins both rules, including the DST changeovers. If you touch these helpers, run it.
 
 ### Row-level security
 

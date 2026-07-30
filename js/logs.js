@@ -2,14 +2,31 @@
 // Habit logs: fetch, toggle, update value, stats, date helpers
 // ============================================================
 
-const DAY_MS = 86400000;
-
+// Clave de día 'YYYY-MM-DD' en hora LOCAL. Ojo: no usar toISOString(), que
+// devuelve UTC — de madrugada apuntaba los registros al día anterior mientras
+// las rachas y el heatmap los buscaban en el día correcto.
 function toDateString(date) {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+// Alias histórico de toDateString: hay llamadas con los dos nombres
+function fmtKey(d) {
+  return toDateString(d);
 }
 
 function today() {
   return toDateString(new Date());
+}
+
+// Sumar 24 h falla en los cambios de horario (el día tiene 23 o 25 h);
+// setDate opera sobre el calendario local y siempre acierta.
+function tomorrow() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return toDateString(d);
 }
 
 function todayDate() {
@@ -18,24 +35,11 @@ function todayDate() {
   return d;
 }
 
-function fmtKey(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return y + '-' + m + '-' + day;
-}
-
 function daysAgo(n) {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   d.setDate(d.getDate() - n);
   return d;
-}
-
-function sameDay(a, b) {
-  return a.getFullYear() === b.getFullYear() &&
-         a.getMonth() === b.getMonth() &&
-         a.getDate() === b.getDate();
 }
 
 // ── Supabase log ops ──────────────────────────────────────────

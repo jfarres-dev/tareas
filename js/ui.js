@@ -360,15 +360,11 @@ function _greetWord() {
   return 'Buenas noches';
 }
 
-function _tomorrow() {
-  return toDateString(new Date(Date.now() + 86400000));
-}
-
 function taskDueLabel(task) {
   var t = today();
   if (task.due_date < t) return 'Atrasada';
   if (task.due_date === t) return 'Hoy';
-  if (task.due_date === _tomorrow()) return 'Mañana';
+  if (task.due_date === tomorrow()) return 'Mañana';
   var d = new Date(task.due_date + 'T00:00:00');
   return d.getDate() + ' ' + MONTHS[d.getMonth()].slice(0, 3);
 }
@@ -829,10 +825,10 @@ function _fmtExpiry(iso) {
   var d = new Date(iso);
   if (isNaN(d.getTime())) return '';
   var hh = d.getHours() + ':' + String(d.getMinutes()).padStart(2, '0');
-  var k = fmtKey(d);
+  var k = toDateString(d);
   var day;
-  if (k === fmtKey(new Date())) day = 'hoy';
-  else if (k === fmtKey(new Date(Date.now() + DAY_MS))) day = 'mañana';
+  if (k === today()) day = 'hoy';
+  else if (k === tomorrow()) day = 'mañana';
   else day = 'el ' + d.getDate() + ' de ' + MONTHS[d.getMonth()];
   return day + ' a las ' + hh;
 }
