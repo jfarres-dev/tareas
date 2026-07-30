@@ -24,6 +24,7 @@ const ICON_PATHS = {
   yoga:        `<circle cx="12" cy="5" r="2"/><path d="M12 7v5l-4 8M12 12l4 8M5 12h14"/>`,
   pen:         `<path d="M3 21l4-1 12-12-3-3L4 17l-1 4z"/>`,
   clock:       `<circle cx="12" cy="12" r="8"/><path d="M12 7v5l3 2"/>`,
+  mail:        `<rect x="3.5" y="5.5" width="17" height="13" rx="2.5"/><path d="m4.5 8 7.5 5.5L19.5 8"/>`,
   target:      `<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="$c" stroke="none"/>`,
   hash:        `<path d="M5 9h14M5 15h14M10 4l-2 16M16 4l-2 16"/>`,
   settings:    `<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.5-2.4.9a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.5a7 7 0 0 0-2 1.2l-2.4-.9-2 3.5 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.5 2.4-.9a7 7 0 0 0 2 1.2L10 21h4l.5-2.5a7 7 0 0 0 2-1.2l2.4.9 2-3.5-2-1.5c.1-.4.1-.8.1-1.2z"/>`,

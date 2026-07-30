@@ -98,6 +98,9 @@ function memberColor(profile) {
 // Mensajes de error de los RPCs → español
 function familyErrorMessage(err) {
   var msg = (err && err.message) || '';
+  if (!navigator.onLine || /Failed to fetch|NetworkError|abort/i.test(msg)) {
+    return 'Sin conexión. Comprueba tu red e inténtalo de nuevo.';
+  }
   if (msg.indexOf('ALREADY_IN_FAMILY') !== -1) return 'Ya perteneces a una familia';
   if (msg.indexOf('INVALID_CODE') !== -1) return 'Código no válido o caducado';
   if (msg.indexOf('NOT_IN_FAMILY') !== -1) return 'No perteneces a ninguna familia';

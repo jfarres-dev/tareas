@@ -70,6 +70,18 @@ async function init() {
     }
   });
 
+  // Avisar al perder/recuperar la red y recargar datos al volver
+  window.addEventListener('offline', function() {
+    showToast('Sin conexión. Los cambios no se guardarán.');
+  });
+  window.addEventListener('online', function() {
+    showToast('Conexión recuperada');
+    if (currentUser) {
+      reloadHabits();
+      if (family) refreshFamilyData(true);
+    }
+  });
+
   try {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -153,7 +165,7 @@ async function loadDashboard() {
     }
   } catch (e) {
     console.error('loadDashboard error', e);
-    showToast('Error cargando datos');
+    showToast(errMsg('Error cargando datos'));
   }
 }
 
@@ -175,6 +187,38 @@ function switchAuthMode(mode) {
   renderAuth(mode);
 }
 
+// Mensaje de error genérico: si no hay red, decirlo claramente
+function errMsg(fallback) {
+  return navigator.onLine ? fallback : 'Sin conexión. Inténtalo cuando vuelvas a tener red.';
+}
+
+// Errores de Supabase Auth (en inglés) → mensajes en español
+function authErrorMessage(e) {
+  var msg = (e && e.message) || '';
+  if (!navigator.onLine || /Failed to fetch|NetworkError|abort|Load failed/i.test(msg)) {
+    return 'Sin conexión. Comprueba tu red e inténtalo de nuevo.';
+  }
+  if (msg.indexOf('Invalid login credentials') !== -1) return 'Correo o contraseña incorrectos.';
+  if (msg.indexOf('Email not confirmed') !== -1) return 'Tu correo aún no está confirmado. Abre el enlace que te enviamos (mira también el spam).';
+  if (msg.indexOf('User already registered') !== -1 || msg === 'USER_EXISTS') return 'Este correo ya está registrado. Entra con tu contraseña.';
+  if (msg.indexOf('Password should be at least') !== -1) return 'La contraseña debe tener al menos 6 caracteres.';
+  if (/rate limit|too many/i.test(msg)) return 'Demasiados intentos. Espera un minuto y vuelve a probarlo.';
+  return msg || 'Error de autenticación. Inténtalo de nuevo.';
+}
+
+function setAuthLoading(loading, label) {
+  var btn = document.getElementById('auth-submit-btn');
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.label = btn.textContent;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span>' + label;
+  } else {
+    btn.disabled = false;
+    btn.textContent = btn.dataset.label || btn.textContent;
+  }
+}
+
 async function handleAuthSubmit(event) {
   event.preventDefault();
   const emailEl = document.getElementById('auth-email');
@@ -186,25 +230,50 @@ async function handleAuthSubmit(event) {
   const name = nameEl ? nameEl.value.trim() : '';
   if (errEl) errEl.classList.add('hidden');
 
+  const isSignup = !!nameEl;
+  if (!navigator.onLine) {
+    if (errEl) {
+      errEl.textContent = 'Sin conexión. Comprueba tu red e inténtalo de nuevo.';
+      errEl.classList.remove('hidden');
+    }
+    return;
+  }
+  setAuthLoading(true, isSignup ? 'Creando cuenta…' : 'Entrando…');
+
   try {
     let result;
-    if (nameEl) {
-      // Signup
+    if (isSignup) {
       result = await supabaseClient.auth.signUp({
         email,
         password,
         options: { data: { name } },
       });
+      if (result.error) throw result.error;
+      var newUser = result.data && result.data.user;
+      // Supabase devuelve un usuario "fantasma" sin identidades cuando el
+      // correo ya existe (para no revelar qué correos están registrados)
+      if (newUser && newUser.identities && newUser.identities.length === 0) {
+        throw { message: 'USER_EXISTS' };
+      }
+      if (!result.data.session) {
+        // Confirmación por correo activada: aún no hay sesión
+        renderAuthEmailSent(email);
+        return;
+      }
+      // Sin confirmación: el evento SIGNED_IN carga el dashboard
     } else {
-      // Login
       result = await supabaseClient.auth.signInWithPassword({ email, password });
+      if (result.error) throw result.error;
+      setAuthLoading(true, 'Cargando tus datos…');
+      // El evento SIGNED_IN carga el dashboard; el botón queda en carga
+      // hasta que cambia la vista
     }
-    if (result.error) throw result.error;
   } catch (e) {
     if (errEl) {
-      errEl.textContent = e.message || 'Error de autenticación';
+      errEl.textContent = authErrorMessage(e);
       errEl.classList.remove('hidden');
     }
+    setAuthLoading(false);
   }
 }
 
@@ -392,7 +461,7 @@ async function saveHabit() {
     await reloadHabits();
   } catch (e) {
     console.error('saveHabit error', e);
-    showToast('Error al guardar');
+    showToast(errMsg('Error al guardar'));
   }
 }
 
@@ -407,7 +476,7 @@ async function deleteCurrentHabit() {
     await reloadHabits();
   } catch (e) {
     console.error('deleteHabit error', e);
-    showToast('Error al eliminar');
+    showToast(errMsg('Error al eliminar'));
   }
 }
 
@@ -434,7 +503,7 @@ async function handleCheck(habitId) {
     }
   } catch (e) {
     console.error('handleCheck error', e);
-    showToast('Error al registrar');
+    showToast(errMsg('Error al registrar'));
   }
 }
 
@@ -450,7 +519,7 @@ async function handleQuickIncrement(habitId) {
     await reloadHabits();
   } catch (e) {
     console.error('handleQuickIncrement error', e);
-    showToast('Error al registrar');
+    showToast(errMsg('Error al registrar'));
   }
 }
 
@@ -522,7 +591,7 @@ async function confirmValue() {
     showToast('Registrado');
   } catch (e) {
     console.error('confirmValue error', e);
-    showToast('Error al guardar');
+    showToast(errMsg('Error al guardar'));
   }
 }
 
@@ -673,7 +742,7 @@ async function saveTask() {
     await refreshFamilyData();
   } catch (e) {
     console.error('saveTask error', e);
-    showToast('Error al guardar');
+    showToast(errMsg('Error al guardar'));
   }
 }
 
@@ -688,7 +757,7 @@ async function handleToggleTask(id) {
     console.error('handleToggleTask error', e);
     task.done = !task.done;
     renderCurrentTab();
-    showToast('Error al registrar');
+    showToast(errMsg('Error al registrar'));
   }
 }
 
@@ -713,7 +782,7 @@ async function handleDeleteTask(id) {
     await refreshFamilyData();
   } catch (e) {
     console.error('handleDeleteTask error', e);
-    showToast('Error al eliminar');
+    showToast(errMsg('Error al eliminar'));
   }
 }
 
@@ -760,7 +829,7 @@ async function saveItem() {
     await refreshFamilyData();
   } catch (e) {
     console.error('saveItem error', e);
-    showToast('Error al guardar');
+    showToast(errMsg('Error al guardar'));
   }
 }
 
@@ -775,7 +844,7 @@ async function handleToggleItem(id) {
     console.error('handleToggleItem error', e);
     item.checked = !item.checked;
     renderCurrentTab();
-    showToast('Error al registrar');
+    showToast(errMsg('Error al registrar'));
   }
 }
 
@@ -788,7 +857,7 @@ async function handleClearChecked() {
     await refreshFamilyData();
   } catch (e) {
     console.error('handleClearChecked error', e);
-    showToast('Error al quitar');
+    showToast(errMsg('Error al quitar'));
   }
 }
 
@@ -897,7 +966,7 @@ async function handleLeaveFamily() {
     await loadDashboard();
   } catch (e) {
     console.error('handleLeaveFamily error', e);
-    showToast('Error al salir');
+    showToast(errMsg('Error al salir'));
   }
 }
 
@@ -934,7 +1003,7 @@ async function handleSaveProfile() {
     renderCurrentTab();
   } catch (e) {
     console.error('handleSaveProfile error', e);
-    showToast('Error al guardar');
+    showToast(errMsg('Error al guardar'));
   }
 }
 
@@ -990,7 +1059,7 @@ async function refreshFamilyData(silent) {
     }
   } catch (e) {
     console.error('refreshFamilyData error', e);
-    if (!silent) showToast('Error cargando datos');
+    if (!silent) showToast(errMsg('Error cargando datos'));
   }
 }
 

@@ -89,13 +89,30 @@ function renderAuth(mode) {
     + '<div class="auth-input-row">'
     + '<input id="auth-password" type="password" placeholder="Contraseña" autocomplete="' + (isLogin ? 'current-password' : 'new-password') + '" minlength="6" maxlength="72" required />'
     + '</div>'
-    + '<button class="btn-primary" type="submit">' + (isLogin ? 'Entrar' : 'Crear cuenta') + '</button>'
+    + '<button class="btn-primary" id="auth-submit-btn" type="submit">' + (isLogin ? 'Entrar' : 'Crear cuenta') + '</button>'
     + '<p id="auth-error" class="auth-error hidden"></p>'
     + '</form>'
     + '<div class="auth-toggle">'
     + (isLogin
       ? '¿No tienes cuenta? <a onclick="switchAuthMode(\'signup\')">Regístrate</a>'
       : '¿Ya tienes cuenta? <a onclick="switchAuthMode(\'login\')">Entra aquí</a>')
+    + '</div>';
+}
+
+// Tras registrarse con confirmación de correo activada: aún no hay sesión,
+// avisar al usuario de que tiene que abrir el enlace del correo.
+function renderAuthEmailSent(email) {
+  document.getElementById('view-auth').innerHTML =
+    '<div class="auth-brand">'
+    + '<div class="auth-brand-icon">' + icon('leaf', 18, 'var(--paper)', 1.5) + '</div>'
+    + '<span class="auth-brand-name">Hábitos</span>'
+    + '</div>'
+    + '<div class="auth-confirm">'
+    + '<div class="auth-confirm-icon">' + icon('mail', 30, 'var(--accent)', 1.5) + '</div>'
+    + '<h1>Revisa tu <em>correo</em></h1>'
+    + '<p>Te hemos enviado un enlace de confirmación a<br><strong>' + _esc(email) + '</strong></p>'
+    + '<p class="auth-confirm-hint">Ábrelo para activar tu cuenta y después vuelve aquí para entrar. Si no lo ves, mira en la carpeta de spam.</p>'
+    + '<button class="btn-primary" onclick="renderAuth(\'login\')" style="margin-top:24px">Ya he confirmado · Entrar</button>'
     + '</div>';
 }
 
@@ -378,9 +395,40 @@ function renderHome(profile, family, members, tasks, items, habits) {
     + '</div>';
 
   if (!family) {
+    // Sin familia la app funciona igual: el Inicio muestra los hábitos de
+    // hoy y la familia se ofrece como opción, no como requisito.
+    var todayStr = today();
+    var scheduled = (habits || []).filter(function(h) { return isScheduledOn(h, new Date()); });
+    var doneHabits = scheduled.filter(function(h) { return isComplete(h, h.log[todayStr]); }).length;
+
+    var soloSection;
+    if (scheduled.length > 0) {
+      var pendingHabits = scheduled.length - doneHabits;
+      var soloHeadline = pendingHabits === 0
+        ? '¡Todo hecho!'
+        : pendingHabits + (pendingHabits === 1 ? ' hábito por hoy' : ' hábitos por hoy');
+      soloSection =
+        '<div class="home-card home-dial-card">'
+        + buildProgressDial(doneHabits, scheduled.length)
+        + '<div class="home-dial-text">'
+        + '<p class="home-headline">' + soloHeadline + '</p>'
+        + '<p class="home-subline">' + doneHabits + ' de ' + scheduled.length + ' completados hoy</p>'
+        + '</div>'
+        + '</div>'
+        + '<div class="home-section-header">'
+        + '<h3 class="section-title" style="padding:0">Hábitos de hoy</h3>'
+        + '<button class="text-btn" onclick="switchTab(\'habits\')">Ver todos →</button>'
+        + '</div>'
+        + '<div class="today-list">' + scheduled.slice(0, 4).map(function(h) { return buildTodayRow(h, h.log[todayStr]); }).join('') + '</div>';
+    } else {
+      soloSection =
+        '<div class="empty-state"><p>Aún no tienes hábitos para hoy.<br>Pulsa + para crear el primero.</p></div>';
+    }
+
     document.getElementById('app-content').innerHTML =
       '<div class="screen screen-home">'
       + header
+      + soloSection
       + buildNoFamilyCard()
       + '</div>';
     return;
@@ -467,8 +515,8 @@ function renderHome(profile, family, members, tasks, items, habits) {
 function buildNoFamilyCard() {
   return '<div class="home-card no-family-card">'
     + '<div class="no-family-icon">' + icon('users', 30, 'var(--accent)', 1.5) + '</div>'
-    + '<h3 class="no-family-title">Crea tu núcleo familiar</h3>'
-    + '<p class="no-family-body">Comparte la lista de la compra y las tareas con tu familia. Cada uno con su cuenta; los hábitos siguen siendo privados.</p>'
+    + '<h3 class="no-family-title">¿Compartís casa?</h3>'
+    + '<p class="no-family-body">Las tareas y la lista de la compra se comparten dentro de un núcleo familiar. Es opcional: sin familia puedes seguir usando tus hábitos con normalidad.</p>'
     + '<button class="btn-primary" onclick="openCreateFamilySheet()">Crear familia</button>'
     + '<button class="btn-secondary" onclick="openJoinFamilySheet()">Tengo un código</button>'
     + '</div>';

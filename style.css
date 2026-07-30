@@ -312,6 +312,52 @@ input, textarea, select { font-family: inherit; color: inherit; outline: none; }
   font-size: 13px;
   font-weight: 500;
 }
+/* Spinner dentro del botón de login/registro mientras se procesa */
+.btn-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 10px;
+  vertical-align: -3px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.7s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+/* Pantalla "revisa tu correo" tras el registro */
+.auth-confirm {
+  padding-top: 48px;
+  text-align: center;
+}
+.auth-confirm-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-confirm h1 {
+  font-family: var(--serif);
+  font-size: 34px;
+  font-weight: 400;
+  margin: 0 0 14px;
+}
+.auth-confirm h1 em { font-style: italic; }
+.auth-confirm p {
+  color: var(--ink-soft);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0 0 10px;
+}
+.auth-confirm-hint {
+  font-size: 13px;
+  color: var(--ink-mute);
+}
 .auth-divider {
   display: flex;
   align-items: center;
